@@ -1,0 +1,362 @@
+// =============================================================================
+// SECTION: GoalsPage
+// Goal tracking page with:
+//   - Summary strip (active / completed / success rate)
+//   - Active goal cards with circular progress rings + status badges
+//   - Create New Goal modal/panel
+//   - Completed goals collapsible list
+//   - AI-suggested goal cards
+// =============================================================================
+
+import { useState } from 'react';
+import DashboardShell from '../components/layout/DashboardShell';
+import MaterialIcon from '../components/atoms/MaterialIcon';
+import Button from '../components/atoms/Button';
+import Badge from '../components/atoms/Badge';
+
+// =============================================================================
+// SECTION: Mock Data
+// =============================================================================
+const INITIAL_GOALS = [
+  {
+    id: 1, title: 'Reduce commute emissions by 20%', category: 'Transport',
+    categoryIcon: 'commute', categoryColor: 'text-blue-600', categoryBg: 'bg-blue-50',
+    progress: 67, saved: 28, target: 42, daysLeft: 13, status: 'on-track',
+  },
+  {
+    id: 2, title: 'Meatless 3 days per week', category: 'Diet',
+    categoryIcon: 'restaurant', categoryColor: 'text-orange-600', categoryBg: 'bg-orange-50',
+    progress: 33, saved: 11, target: 33, daysLeft: 19, status: 'at-risk',
+  },
+  {
+    id: 3, title: 'Cut home energy use by 15%', category: 'Energy',
+    categoryIcon: 'bolt', categoryColor: 'text-yellow-600', categoryBg: 'bg-yellow-50',
+    progress: 82, saved: 24, target: 29, daysLeft: 5, status: 'on-track',
+  },
+];
+
+const COMPLETED_GOALS = [
+  { id: 4, title: 'Plastic-free grocery week',    saved: 3.2,  date: 'Jun 2, 2026',  category: 'Shopping' },
+  { id: 5, title: 'Walk to work for 2 weeks',     saved: 18.4, date: 'May 22, 2026', category: 'Transport' },
+  { id: 6, title: 'No beef in May',               saved: 52.8, date: 'May 31, 2026', category: 'Diet' },
+  { id: 7, title: 'LED bulb swap at home',        saved: 6.1,  date: 'Apr 15, 2026', category: 'Energy' },
+];
+
+const SUGGESTED_GOALS = [
+  { icon: 'directions_bus',  title: 'Replace 2 car trips/week with bus',   saving: 32, category: 'Transport' },
+  { icon: 'eco',             title: 'Compost kitchen waste for 30 days',    saving: 12, category: 'Waste' },
+  { icon: 'wb_sunny',        title: 'Turn off standby devices overnight',   saving: 18, category: 'Energy' },
+];
+
+const STATUS_CONFIG = {
+  'on-track': { label: 'On Track', badge: 'green',   icon: 'check_circle' },
+  'at-risk':  { label: 'At Risk',  badge: 'amber',   icon: 'warning' },
+  'behind':   { label: 'Behind',   badge: 'red',     icon: 'error' },
+};
+
+// =============================================================================
+// SECTION: CircularProgress — SVG ring showing goal % completion
+// =============================================================================
+function CircularProgress({ pct, size = 80 }) {
+  const r = (size - 12) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  const color = pct >= 70 ? '#006b2c' : pct >= 40 ? '#d97706' : '#dc2626';
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}
+      role="img" aria-label={`${pct}% complete`}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="transparent" stroke="#dce2f7" strokeWidth={10} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="transparent" stroke={color}
+          strokeWidth={10} strokeDasharray={circ} strokeDashoffset={offset}
+          strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="font-mono font-bold text-sm text-[#141b2b]">{pct}%</span>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// SECTION: ActiveGoalCard
+// =============================================================================
+function ActiveGoalCard({ goal, onComplete, onDelete }) {
+  const status = STATUS_CONFIG[goal.status];
+  return (
+    <article className="bg-white rounded-2xl p-6 shadow-sm border border-[#bdcaba]/30 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className={`p-2 ${goal.categoryBg} ${goal.categoryColor} rounded-lg`}>
+            <MaterialIcon name={goal.categoryIcon} className="text-lg" />
+          </span>
+          <span className="text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider">{goal.category}</span>
+        </div>
+        <Badge variant={status.badge}>
+          <MaterialIcon name={status.icon} fill={1} className="text-xs" />
+          {status.label}
+        </Badge>
+      </div>
+
+      <h3 className="text-base font-bold text-[#141b2b] mb-5 leading-snug">{goal.title}</h3>
+
+      <div className="flex items-center gap-5 mb-5">
+        <CircularProgress pct={goal.progress} />
+        <div className="flex-1">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-[#3e4a3d]">Saved</span>
+            <span className="font-mono font-bold text-[#006b2c]">{goal.saved} kg CO₂e</span>
+          </div>
+          <div className="flex justify-between text-sm mb-3">
+            <span className="text-[#3e4a3d]">Target</span>
+            <span className="font-mono font-bold text-[#141b2b]">{goal.target} kg CO₂e</span>
+          </div>
+          <div className="w-full h-2 bg-[#e1e8fd] rounded-full overflow-hidden">
+            <div className="h-full bg-[#006b2c] rounded-full transition-all duration-700"
+              style={{ width: `${goal.progress}%` }}
+              role="progressbar" aria-valuenow={goal.progress} aria-valuemin={0} aria-valuemax={100}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-4 border-t border-[#f1f3ff]">
+        <span className={`flex items-center gap-1 text-xs font-bold ${goal.daysLeft <= 7 ? 'text-[#d97706]' : 'text-[#3e4a3d]'}`}>
+          <MaterialIcon name="schedule" className="text-sm" />
+          {goal.daysLeft} days left
+        </span>
+        <div className="flex gap-2">
+          <button onClick={() => onDelete(goal.id)}
+            className="text-[11px] font-bold text-[#ba1a1a] border border-[#ffdad6] px-3 py-1 rounded-lg hover:bg-[#ffdad6] transition-colors">
+            Delete
+          </button>
+          <button onClick={() => onComplete(goal.id)}
+            className="text-[11px] font-bold text-[#006b2c] border border-[#b1f2be] px-3 py-1 rounded-lg hover:bg-[#f0fdf4] transition-colors">
+            ✓ Complete
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// =============================================================================
+// SECTION: NewGoalPanel — slide-in form
+// =============================================================================
+function NewGoalPanel({ onClose, onAdd }) {
+  const [form, setForm] = useState({ title: '', category: 'Transport', target: 20, days: 30 });
+  const up = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
+
+  const handleAdd = () => {
+    if (!form.title.trim()) return;
+    onAdd({
+      id: Date.now(),
+      title: form.title,
+      category: form.category,
+      categoryIcon: 'flag',
+      categoryColor: 'text-green-600',
+      categoryBg: 'bg-green-50',
+      progress: 0,
+      saved: 0,
+      target: Number(form.target),
+      daysLeft: Number(form.days),
+      status: 'on-track',
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+      role="dialog" aria-modal="true" aria-label="Create new goal">
+      <div className="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-[#141b2b]">Create a New Goal</h2>
+          <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-[#f1f3ff] rounded-full">
+            <MaterialIcon name="close" className="text-xl text-[#3e4a3d]" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="goal-title" className="block text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">
+              Goal Title *
+            </label>
+            <input id="goal-title" type="text" value={form.title} onChange={up('title')}
+              placeholder="e.g. Reduce transport by 20%"
+              className="w-full px-4 py-3 bg-[#f1f3ff] rounded-xl border-0 focus:ring-2 focus:ring-[#006b2c] text-[#141b2b] placeholder:text-[#bdcaba]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="goal-cat" className="block text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">Category</label>
+              <select id="goal-cat" value={form.category} onChange={up('category')}
+                className="w-full px-4 py-3 bg-[#f1f3ff] rounded-xl border-0 focus:ring-2 focus:ring-[#006b2c] text-[#141b2b]">
+                {['Transport', 'Diet', 'Energy', 'Shopping', 'Waste'].map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="goal-target" className="block text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">Target (kg CO₂e)</label>
+              <input id="goal-target" type="number" min="1" value={form.target} onChange={up('target')}
+                className="w-full px-4 py-3 bg-[#f1f3ff] rounded-xl border-0 focus:ring-2 focus:ring-[#006b2c] text-[#141b2b]" />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="goal-days" className="block text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">
+              Deadline (days from today): <span className="font-mono text-[#006b2c]">{form.days} days</span>
+            </label>
+            <input id="goal-days" type="range" min="7" max="90" value={form.days} onChange={up('days')}
+              className="w-full accent-[#006b2c]" />
+            <div className="flex justify-between text-[10px] text-[#3e4a3d] font-bold mt-0.5">
+              <span>7 days</span><span>90 days</span>
+            </div>
+          </div>
+
+          <div className="bg-[#f0fdf4] rounded-xl p-4 text-sm text-[#3e4a3d]">
+            You're committing to reduce <strong>{form.category}</strong> by{' '}
+            <strong>{form.target} kg CO₂e</strong> in{' '}
+            <strong>{form.days} days</strong>.
+          </div>
+
+          <Button fullWidth onClick={handleAdd}>
+            <MaterialIcon name="flag" fill={1} className="text-lg" />
+            Set Goal
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// SECTION: GoalsPage — Default Export
+// =============================================================================
+export default function GoalsPage() {
+  const [goals, setGoals] = useState(INITIAL_GOALS);
+  const [showPanel, setShowPanel] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [completed, setCompleted] = useState(COMPLETED_GOALS);
+
+  const handleComplete = (id) => {
+    const goal = goals.find((g) => g.id === id);
+    if (goal) {
+      setCompleted((prev) => [{ id, title: goal.title, saved: goal.saved, date: 'Today', category: goal.category }, ...prev]);
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+    }
+  };
+  const handleDelete = (id) => setGoals((prev) => prev.filter((g) => g.id !== id));
+  const handleAdd = (goal) => setGoals((prev) => [goal, ...prev]);
+
+  return (
+    <DashboardShell>
+      {showPanel && <NewGoalPanel onClose={() => setShowPanel(false)} onAdd={handleAdd} />}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-[#141b2b]">Goals</h1>
+          <p className="text-sm text-[#3e4a3d] mt-1">Commit to reductions. Progress tracked automatically.</p>
+        </div>
+        <Button onClick={() => setShowPanel(true)}>
+          <MaterialIcon name="add" className="text-lg" />
+          New Goal
+        </Button>
+      </div>
+
+      {/* Summary strip */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          { icon: 'track_changes', label: 'Active', value: goals.length,     color: 'text-[#006b2c]',  bg: 'bg-[#f0fdf4]' },
+          { icon: 'check_circle',  label: 'Completed', value: completed.length, color: 'text-[#006b2c]',  bg: 'bg-[#b1f2be]' },
+          { icon: 'emoji_events',  label: 'Success Rate', value: '78%',        color: 'text-[#d97706]', bg: 'bg-[#fef3c7]' },
+        ].map((s) => (
+          <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-[#bdcaba]/30 text-center">
+            <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
+              <MaterialIcon name={s.icon} fill={1} className={`text-2xl ${s.color}`} />
+            </div>
+            <p className="font-mono text-3xl font-bold text-[#141b2b]">{s.value}</p>
+            <p className="text-xs font-bold text-[#3e4a3d] uppercase tracking-wider mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Active goals */}
+      <h2 className="text-lg font-bold text-[#141b2b] mb-4">Active Goals ({goals.length})</h2>
+      {goals.length === 0 ? (
+        <div className="bg-[#f1f3ff] rounded-2xl p-12 text-center border-2 border-dashed border-[#bdcaba] mb-8">
+          <MaterialIcon name="flag" fill={1} className="text-[#bdcaba] text-5xl block mx-auto mb-3" />
+          <p className="text-base font-semibold text-[#3e4a3d]">No active goals</p>
+          <p className="text-sm text-[#6e7b6c] mt-1 mb-4">Set your first goal to start tracking progress</p>
+          <Button onClick={() => setShowPanel(true)}>
+            <MaterialIcon name="add" className="text-lg" /> Create First Goal
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
+          {goals.map((g) => (
+            <ActiveGoalCard key={g.id} goal={g} onComplete={handleComplete} onDelete={handleDelete} />
+          ))}
+        </div>
+      )}
+
+      {/* Suggested goals */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <MaterialIcon name="auto_awesome" fill={1} className="text-[#006b2c] text-xl" />
+          <h2 className="text-lg font-bold text-[#141b2b]">AI-Suggested Goals</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {SUGGESTED_GOALS.map((s) => (
+            <div key={s.title} className="bg-[#f0fdf4] border border-[#b1f2be] rounded-2xl p-5 flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#b1f2be] rounded-xl flex items-center justify-center">
+                  <MaterialIcon name={s.icon} fill={1} className="text-[#006b2c] text-xl" />
+                </div>
+                <Badge variant="default">{s.category}</Badge>
+              </div>
+              <p className="text-sm font-semibold text-[#141b2b] leading-snug">{s.title}</p>
+              <p className="text-xs text-[#3e4a3d]">Could save <strong className="text-[#006b2c]">~{s.saving} kg/month</strong></p>
+              <button
+                onClick={() => { setForm?.({ title: s.title }); setShowPanel(true); }}
+                className="text-[11px] font-bold text-[#006b2c] border border-[#006b2c] px-3 py-1.5 rounded-lg hover:bg-[#006b2c] hover:text-white transition-colors"
+              >
+                Set This Goal
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Completed goals */}
+      <div>
+        <button
+          onClick={() => setShowCompleted((v) => !v)}
+          className="flex items-center gap-2 text-lg font-bold text-[#141b2b] mb-4 hover:text-[#006b2c] transition-colors"
+          aria-expanded={showCompleted}
+        >
+          <MaterialIcon name={showCompleted ? 'expand_less' : 'expand_more'} className="text-xl" />
+          Completed Goals ({completed.length})
+        </button>
+        {showCompleted && (
+          <div className="bg-white rounded-2xl shadow-sm border border-[#bdcaba]/30 overflow-hidden">
+            {completed.map((g, i) => (
+              <div key={g.id} className={`flex items-center justify-between p-4 ${i < completed.length - 1 ? 'border-b border-[#f1f3ff]' : ''} hover:bg-[#f9f9ff] transition-colors`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-[#b1f2be] rounded-full flex items-center justify-center flex-shrink-0">
+                    <MaterialIcon name="check" fill={1} className="text-[#006b2c] text-sm" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#141b2b]">{g.title}</p>
+                    <p className="text-xs text-[#3e4a3d]">Completed {g.date} · {g.category}</p>
+                  </div>
+                </div>
+                <Badge variant="green">Saved {g.saved} kg</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </DashboardShell>
+  );
+}

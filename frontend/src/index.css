@@ -1,0 +1,141 @@
+/* =============================================================================
+   Global Styles — CarbonTrace Design System
+   Tailwind CSS v4 base import + CSS custom properties for brand design tokens.
+   All colour/spacing values mirror the Stitch DESIGN.md specification exactly.
+   ============================================================================= */
+
+@import "tailwindcss";
+
+/* =============================================================================
+   SECTION: Design Token CSS Custom Properties
+   These variables are the single source of truth for colours used across JSX.
+   Tailwind utility classes reference these via the inline hex values that
+   directly correspond to these tokens.
+   ============================================================================= */
+:root {
+  /* --- Surface palette --- */
+  --surface:                   #f9f9ff;
+  --surface-dim:               #d3daef;
+  --surface-container-lowest:  #ffffff;
+  --surface-container-low:     #f1f3ff;
+  --surface-container:         #e9edff;
+  --surface-container-high:    #e1e8fd;
+  --surface-container-highest: #dce2f7;
+  --on-surface:                #141b2b;
+  --on-surface-variant:        #3e4a3d;
+  --outline:                   #6e7b6c;
+  --outline-variant:           #bdcaba;
+  --inverse-surface:           #293040;
+  --inverse-on-surface:        #edf0ff;
+
+  /* --- Primary (Green) --- */
+  --primary:                   #006b2c;
+  --on-primary:                #ffffff;
+  --primary-container:         #00873a;
+  --on-primary-container:      #f7fff2;
+  --inverse-primary:           #62df7d;
+  --primary-fixed:             #7ffc97;
+  --primary-fixed-dim:         #62df7d;
+
+  /* --- Secondary --- */
+  --secondary:                 #2e6a41;
+  --on-secondary:              #ffffff;
+  --secondary-container:       #b1f2be;
+  --on-secondary-container:    #347047;
+  --secondary-fixed-dim:       #96d5a3;
+
+  /* --- Tertiary (Amber/Warm) --- */
+  --tertiary:                  #8d4b00;
+  --on-tertiary:               #ffffff;
+  --tertiary-fixed:            #ffdcc3;
+  --tertiary-fixed-dim:        #ffb77d;
+
+  /* --- Error / Destructive --- */
+  --error:                     #ba1a1a;
+  --on-error:                  #ffffff;
+  --error-container:           #ffdad6;
+  --on-error-container:        #93000a;
+
+  /* --- Background --- */
+  --background:                #f9f9ff;
+  --on-background:             #141b2b;
+
+  /* --- Carbon status colours (used in score meters) --- */
+  --carbon-low:                #006b2c;  /* ≤ 5 kg/day   */
+  --carbon-moderate:           #d97706;  /* 5–15 kg/day  */
+  --carbon-high:               #dc2626;  /* > 15 kg/day  */
+
+  /* --- Alt green page background --- */
+  --bg-alt-green:              #f0fdf4;
+}
+
+/* =============================================================================
+   SECTION: Base Element Resets
+   ============================================================================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background);
+  color: var(--on-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =============================================================================
+   SECTION: Material Symbols Icon Configuration
+   Applied globally so all <MaterialIcon> atoms inherit the correct rendering.
+   ============================================================================= */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  display: inline-block;
+  line-height: 1;
+}
+
+/* =============================================================================
+   SECTION: Float Animation
+   Used on the hero section phone mockup and floating stat cards.
+   ============================================================================= */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-14px); }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 5s ease-in-out 1.8s infinite;
+}
+
+/* =============================================================================
+   SECTION: Scrollbar Hide Utility
+   Used on horizontally-scrollable card rows.
+   ============================================================================= */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* =============================================================================
+   SECTION: Reduced Motion Override (WCAG 2.3.3)
+   Disables ALL non-essential animation for users who prefer reduced motion.
+   ============================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
