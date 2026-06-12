@@ -1,111 +1,127 @@
 // =============================================================================
 // SECTION: Auth Context
-// Provides application-wide authentication state.
-// On login/register: calls the real backend, stores JWT in localStorage,
-// persists user object in state.
-// Falls back to local-only mode if the API is unreachable (dev convenience).
+// Authentication is handled entirely by Firebase Auth (email + password).
+// On every API call, the current Firebase ID token is sent as Bearer.
+// The backend (Firebase Admin SDK) verifies the token and auto-creates
+// the Neon user row on first login.
 // =============================================================================
 
-import { createContext, useContext, useState, useCallback } from 'react';
-import { authAPI, saveToken, clearToken, getToken } from '../services/api';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { auth } from '../services/firebase/config';
+import {
+  signUpWithEmail,
+  signInWithEmail,
+  logOut as firebaseLogOut,
+  subscribeToAuthChanges,
+} from '../services/firebase/authService';
+import { authAPI } from '../services/api';
 
-// --- Context creation ---
 const AuthContext = createContext(null);
 
 // =============================================================================
 // SECTION: AuthProvider
 // =============================================================================
 export function AuthProvider({ children }) {
+  const [user,        setUser]        = useState(null);
+  const [isOnboarded, setIsOnboarded] = useState(false);
+  const [loading,     setLoading]     = useState(true); // true until Firebase resolves
 
-  // Restore persisted user from localStorage on first render
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('ct_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  // -------------------------------------------------------------------------
+  // Subscribe to Firebase auth state — single source of truth.
+  // Fires immediately with the current user (or null) on mount.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges(async (firebaseUser) => {
+      if (firebaseUser) {
+        // Persist minimal user shape in state
+        setUser({
+          uid:   firebaseUser.uid,
+          name:  firebaseUser.name,
+          email: firebaseUser.email,
+        });
 
-  const [isOnboarded, setIsOnboarded] = useState(() => {
-    return localStorage.getItem('ct_onboarded') === 'true';
-  });
+        // Check onboarded status from Neon via backend
+        // (token is refreshed automatically by Firebase before this runs)
+        try {
+          const { data } = await authAPI.me();
+          if (data?.isOnboarded) setIsOnboarded(true);
+        } catch {
+          // Backend unreachable — leave isOnboarded as false
+        }
+      } else {
+        setUser(null);
+        setIsOnboarded(false);
+      }
+      setLoading(false);
+    });
 
-  // ==========================================================================
-  // SECTION: register — calls POST /api/auth/register
-  // Returns { error } if something went wrong, null on success.
-  // ==========================================================================
-  const register = useCallback(async ({ firstName, lastName, email, password, country }) => {
-    const { data, error } = await authAPI.register({ firstName, lastName, email, password, country });
+    return unsubscribe;
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // register — Firebase creates the account, then the backend auto-creates
+  // the Neon row on the next authenticated API call.
+  // -------------------------------------------------------------------------
+  const register = useCallback(async ({ firstName, lastName, email, password }) => {
+    const { user: fbUser, error } = await signUpWithEmail(firstName, lastName, email, password);
     if (error) return error;
 
-    // Persist JWT + user
-    saveToken(data.token);
-    const userData = { name: data.user.firstName, email: data.user.email, id: data.user.id };
-    setUser(userData);
-    localStorage.setItem('ct_user', JSON.stringify(userData));
-
-    if (data.user.isOnboarded) {
-      setIsOnboarded(true);
-      localStorage.setItem('ct_onboarded', 'true');
-    }
+    setUser({
+      uid:   fbUser.uid,
+      name:  fbUser.name,
+      email: fbUser.email,
+    });
     return null; // no error
   }, []);
 
-  // ==========================================================================
-  // SECTION: login — calls POST /api/auth/login
-  // ==========================================================================
-  const login = useCallback(async (emailOrObj, passwordArg) => {
-    // Support two calling signatures:
-    //   login({ name, email }) — local-only (used by onboarding mock path)
-    //   login(email, password)  — real backend call
-    if (typeof emailOrObj === 'object' && !passwordArg) {
-      // Local-only path (demo / no backend)
-      setUser(emailOrObj);
-      localStorage.setItem('ct_user', JSON.stringify(emailOrObj));
-      return null;
-    }
-
-    const { data, error } = await authAPI.login({ email: emailOrObj, password: passwordArg });
+  // -------------------------------------------------------------------------
+  // login — Firebase verifies credentials and returns the user.
+  // -------------------------------------------------------------------------
+  const login = useCallback(async (email, password) => {
+    const { user: fbUser, error } = await signInWithEmail(email, password);
     if (error) return error;
 
-    saveToken(data.token);
-    const userData = { name: data.user.firstName, email: data.user.email, id: data.user.id };
-    setUser(userData);
-    localStorage.setItem('ct_user', JSON.stringify(userData));
+    setUser({
+      uid:   fbUser.uid,
+      name:  fbUser.name,
+      email: fbUser.email,
+    });
 
-    if (data.user.isOnboarded) {
-      setIsOnboarded(true);
-      localStorage.setItem('ct_onboarded', 'true');
+    // Check onboarded flag from backend
+    try {
+      const { data } = await authAPI.me();
+      if (data?.isOnboarded) setIsOnboarded(true);
+    } catch {
+      // ignore
     }
+
     return null;
   }, []);
 
-  // ==========================================================================
-  // SECTION: completeOnboarding — calls PATCH /api/auth/onboard
-  // ==========================================================================
+  // -------------------------------------------------------------------------
+  // completeOnboarding — calls PATCH /api/auth/onboard
+  // -------------------------------------------------------------------------
   const completeOnboarding = useCallback(async (lifestyle = 'transit') => {
-    if (getToken()) {
-      await authAPI.onboard({ lifestyle }); // fire-and-forget; no UI impact if it fails
-    }
+    await authAPI.onboard({ lifestyle });
     setIsOnboarded(true);
-    localStorage.setItem('ct_onboarded', 'true');
   }, []);
 
-  // ==========================================================================
-  // SECTION: logout
-  // ==========================================================================
-  const logout = useCallback(() => {
-    setUser(null);
-    setIsOnboarded(false);
-    clearToken();
-    localStorage.removeItem('ct_user');
-    localStorage.removeItem('ct_onboarded');
+  // -------------------------------------------------------------------------
+  // logout — Firebase signs out, state clears via subscribeToAuthChanges
+  // -------------------------------------------------------------------------
+  const logout = useCallback(async () => {
+    await firebaseLogOut();
+    // subscribeToAuthChanges fires with null → clears user + isOnboarded
   }, []);
 
-  const value = { user, isOnboarded, login, register, completeOnboarding, logout };
+  const value = { user, isOnboarded, loading, login, register, completeOnboarding, logout };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {/* Don't render children until Firebase has resolved auth state */}
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 }
 
 // =============================================================================

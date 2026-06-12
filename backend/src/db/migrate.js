@@ -26,8 +26,9 @@ const SQL = `
 -- =============================================================
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL        PRIMARY KEY,
+  firebase_uid  VARCHAR(128)  UNIQUE,              -- Firebase Auth UID (null for legacy rows)
   email         VARCHAR(320)  UNIQUE NOT NULL,
-  password_hash VARCHAR(255)  NOT NULL,
+  password_hash VARCHAR(255)  DEFAULT '',           -- empty for Firebase-auth users
   first_name    VARCHAR(100)  NOT NULL,
   last_name     VARCHAR(100)  DEFAULT '',
   country       VARCHAR(100)  DEFAULT 'United States',

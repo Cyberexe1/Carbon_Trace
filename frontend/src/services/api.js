@@ -10,18 +10,29 @@
 //   This keeps UI components clean and consistent.
 // =============================================================================
 
+import { auth } from './firebase/config';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // =============================================================================
 // SECTION: Core fetch wrapper
-// Attaches Authorization header automatically when a token is in localStorage.
+// Gets a fresh Firebase ID token on every request (Firebase caches it and
+// only calls the network when the token is within 5 minutes of expiry).
 // Returns { data } on success, { error } on failure.
 // =============================================================================
 async function request(method, path, body = null) {
-  const token = localStorage.getItem('ct_token');
-
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  // Attach Firebase ID token if user is signed in
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    try {
+      const idToken = await currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${idToken}`;
+    } catch {
+      // token fetch failed — send request without auth (will get 401)
+    }
+  }
 
   const options = { method, headers };
   if (body) options.body = JSON.stringify(body);
@@ -36,7 +47,6 @@ async function request(method, path, body = null) {
 
     return { data: json, error: null };
   } catch (err) {
-    // Network-level failure (offline, CORS blocked, etc.)
     return { data: null, error: 'Network error — is the server running?' };
   }
 }
@@ -47,36 +57,16 @@ const post   = (path, body)  => request('POST',   path, body);
 const patch  = (path, body)  => request('PATCH',  path, body);
 const put    = (path, body)  => request('PUT',    path, body);
 const del    = (path)        => request('DELETE', path);
-
 // =============================================================================
 // SECTION: Auth API
+// login/register are handled by Firebase Auth — these endpoints handle
+// onboarding and profile fetching only.
 // =============================================================================
 export const authAPI = {
-  /**
-   * Register a new account.
-   * @param {{ firstName, lastName, email, password, country }} body
-   * @returns {{ data: { token, user }, error }}
-   */
-  register: (body) => post('/auth/register', body),
-
-  /**
-   * Log in with email + password.
-   * @param {{ email, password }} body
-   * @returns {{ data: { token, user }, error }}
-   */
-  login: (body) => post('/auth/login', body),
-
-  /**
-   * Fetch the currently authenticated user's profile.
-   * @returns {{ data: user, error }}
-   */
+  /** Fetch the currently authenticated user's profile from Neon. */
   me: () => get('/auth/me'),
 
-  /**
-   * Complete the onboarding wizard.
-   * @param {{ lifestyle }} body
-   * @returns {{ data: { message }, error }}
-   */
+  /** Complete the onboarding wizard. */
   onboard: (body) => patch('/auth/onboard', body),
 };
 
@@ -167,19 +157,3 @@ export const usersAPI = {
   /** Permanently delete the account. */
   deleteAccount: () => del('/users/account'),
 };
-
-// =============================================================================
-// SECTION: Token helpers
-// Called by AuthContext after a successful login/register.
-// =============================================================================
-export function saveToken(token) {
-  localStorage.setItem('ct_token', token);
-}
-
-export function clearToken() {
-  localStorage.removeItem('ct_token');
-}
-
-export function getToken() {
-  return localStorage.getItem('ct_token');
-}
