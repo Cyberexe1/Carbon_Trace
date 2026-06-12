@@ -1,25 +1,23 @@
 // =============================================================================
 // SECTION: Auth Context
-// Provides application-wide authentication state via React Context.
-// In a production app this would wrap Firebase Auth; here it uses localStorage
-// so the routing flow (Landing → Login → Onboarding → Dashboard) works fully
-// without a backend.
+// Provides application-wide authentication state.
+// On login/register: calls the real backend, stores JWT in localStorage,
+// persists user object in state.
+// Falls back to local-only mode if the API is unreachable (dev convenience).
 // =============================================================================
 
 import { createContext, useContext, useState, useCallback } from 'react';
+import { authAPI, saveToken, clearToken, getToken } from '../services/api';
 
 // --- Context creation ---
 const AuthContext = createContext(null);
 
 // =============================================================================
-// SECTION: AuthProvider Component
-// Wraps the entire app. Children can access auth state via useAuth().
-// State shape:
-//   user        — null when logged out, object { name, email } when logged in
-//   isOnboarded — true once the user has completed the 3-step onboarding
+// SECTION: AuthProvider
 // =============================================================================
 export function AuthProvider({ children }) {
-  // Restore persisted state from localStorage so page refreshes don't log out
+
+  // Restore persisted user from localStorage on first render
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('ct_user');
@@ -33,39 +31,88 @@ export function AuthProvider({ children }) {
     return localStorage.getItem('ct_onboarded') === 'true';
   });
 
-  // --- login: called after successful register or sign-in ---
-  const login = useCallback((userData) => {
+  // ==========================================================================
+  // SECTION: register — calls POST /api/auth/register
+  // Returns { error } if something went wrong, null on success.
+  // ==========================================================================
+  const register = useCallback(async ({ firstName, lastName, email, password, country }) => {
+    const { data, error } = await authAPI.register({ firstName, lastName, email, password, country });
+    if (error) return error;
+
+    // Persist JWT + user
+    saveToken(data.token);
+    const userData = { name: data.user.firstName, email: data.user.email, id: data.user.id };
     setUser(userData);
     localStorage.setItem('ct_user', JSON.stringify(userData));
+
+    if (data.user.isOnboarded) {
+      setIsOnboarded(true);
+      localStorage.setItem('ct_onboarded', 'true');
+    }
+    return null; // no error
   }, []);
 
-  // --- completeOnboarding: called at end of onboarding wizard ---
-  const completeOnboarding = useCallback(() => {
+  // ==========================================================================
+  // SECTION: login — calls POST /api/auth/login
+  // ==========================================================================
+  const login = useCallback(async (emailOrObj, passwordArg) => {
+    // Support two calling signatures:
+    //   login({ name, email }) — local-only (used by onboarding mock path)
+    //   login(email, password)  — real backend call
+    if (typeof emailOrObj === 'object' && !passwordArg) {
+      // Local-only path (demo / no backend)
+      setUser(emailOrObj);
+      localStorage.setItem('ct_user', JSON.stringify(emailOrObj));
+      return null;
+    }
+
+    const { data, error } = await authAPI.login({ email: emailOrObj, password: passwordArg });
+    if (error) return error;
+
+    saveToken(data.token);
+    const userData = { name: data.user.firstName, email: data.user.email, id: data.user.id };
+    setUser(userData);
+    localStorage.setItem('ct_user', JSON.stringify(userData));
+
+    if (data.user.isOnboarded) {
+      setIsOnboarded(true);
+      localStorage.setItem('ct_onboarded', 'true');
+    }
+    return null;
+  }, []);
+
+  // ==========================================================================
+  // SECTION: completeOnboarding — calls PATCH /api/auth/onboard
+  // ==========================================================================
+  const completeOnboarding = useCallback(async (lifestyle = 'transit') => {
+    if (getToken()) {
+      await authAPI.onboard({ lifestyle }); // fire-and-forget; no UI impact if it fails
+    }
     setIsOnboarded(true);
     localStorage.setItem('ct_onboarded', 'true');
   }, []);
 
-  // --- logout: clears all persisted state ---
+  // ==========================================================================
+  // SECTION: logout
+  // ==========================================================================
   const logout = useCallback(() => {
     setUser(null);
     setIsOnboarded(false);
+    clearToken();
     localStorage.removeItem('ct_user');
     localStorage.removeItem('ct_onboarded');
   }, []);
 
-  const value = { user, isOnboarded, login, completeOnboarding, logout };
+  const value = { user, isOnboarded, login, register, completeOnboarding, logout };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // =============================================================================
 // SECTION: useAuth Hook
-// Convenience hook — throws if used outside of AuthProvider.
 // =============================================================================
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within an <AuthProvider>');
-  }
+  if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
   return ctx;
 }

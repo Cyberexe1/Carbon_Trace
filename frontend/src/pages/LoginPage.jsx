@@ -100,16 +100,16 @@ function LoginForm({ onSwitch }) {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please fill in all fields.');
-      return;
-    }
-    // Simulate successful auth — extract first name from email
-    const name = email.split('@')[0].replace(/[^a-zA-Z]/g, '') || 'User';
-    login({ name: name.charAt(0).toUpperCase() + name.slice(1), email });
+    if (!email || !password) { setError('Please fill in all fields.'); return; }
+    setLoading(true);
+    setError('');
+    const err = await login(email, password);
+    setLoading(false);
+    if (err) { setError(err); return; }
     navigate(isOnboarded ? ROUTES.DASHBOARD : ROUTES.ONBOARDING);
   };
 
@@ -125,18 +125,6 @@ function LoginForm({ onSwitch }) {
           {error}
         </div>
       )}
-
-      {/* Google sign-in */}
-      <button className="w-full flex items-center justify-center gap-3 py-3 px-6 bg-white border border-[#bdcaba] rounded-xl hover:bg-[#f1f3ff] transition-all mb-6">
-        <GoogleLogo />
-        <span className="text-[12px] font-medium text-[#141b2b]">Continue with Google</span>
-      </button>
-
-      <div className="relative flex items-center mb-6">
-        <div className="flex-grow border-t border-[#bdcaba]" />
-        <span className="mx-4 text-[11px] font-bold text-[#6e7b6c] uppercase tracking-widest">or email</span>
-        <div className="flex-grow border-t border-[#bdcaba]" />
-      </div>
 
       <form className="space-y-5" onSubmit={handleSubmit} noValidate>
         <div>
@@ -184,7 +172,9 @@ function LoginForm({ onSwitch }) {
           </label>
           <a href="#" className="text-sm text-[#006b2c] font-semibold hover:underline">Forgot password?</a>
         </div>
-        <Button type="submit" fullWidth>Sign In</Button>
+        <Button type="submit" fullWidth disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign In'}
+        </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-[#3e4a3d]">
@@ -202,25 +192,24 @@ function LoginForm({ onSwitch }) {
 // First name, last name, email, country, password with strength meter.
 // =============================================================================
 function RegisterForm({ onSwitch }) {
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', country: 'United States', password: '' });
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.firstName || !form.email || !form.password) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-    if (!agreed) {
-      setError('Please accept the Terms of Service.');
-      return;
-    }
-    login({ name: form.firstName, email: form.email });
+    if (!form.firstName || !form.email || !form.password) { setError('Please fill in all required fields.'); return; }
+    if (!agreed) { setError('Please accept the Terms of Service.'); return; }
+    setLoading(true);
+    setError('');
+    const err = await register(form);
+    setLoading(false);
+    if (err) { setError(err); return; }
     navigate(ROUTES.ONBOARDING);
   };
 
@@ -333,7 +322,9 @@ function RegisterForm({ onSwitch }) {
           </span>
         </label>
 
-        <Button type="submit" fullWidth>Create Free Account</Button>
+        <Button type="submit" fullWidth disabled={loading}>
+          {loading ? 'Creating account…' : 'Create Free Account'}
+        </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-[#3e4a3d]">
@@ -343,21 +334,6 @@ function RegisterForm({ onSwitch }) {
         </button>
       </p>
     </div>
-  );
-}
-
-// =============================================================================
-// SECTION: GoogleLogo inline SVG
-// Inlined so we don't need an asset file.
-// =============================================================================
-function GoogleLogo() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 5.04c1.94 0 3.51.68 4.79 1.97l3.58-3.58C18.16 1.28 15.3 0 12 0 7.31 0 3.32 2.69 1.39 6.6l4.23 3.28C6.61 7.04 9.06 5.04 12 5.04z" fill="#EA4335" />
-      <path d="M23.49 12.27c0-.85-.07-1.66-.21-2.45H12v4.65h6.47c-.28 1.48-1.11 2.74-2.36 3.58l3.66 2.84c2.14-1.98 3.39-4.89 3.39-8.62z" fill="#4285F4" />
-      <path d="M5.62 14.88c-.24-.72-.37-1.49-.37-2.28 0-.79.13-1.56.37-2.28L1.39 7.01C.5 8.78 0 10.74 0 12.8s.5 4.02 1.39 5.79l4.23-3.71z" fill="#FBBC05" />
-      <path d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.66-2.84c-1.1.74-2.51 1.17-4.3 1.17-2.94 0-5.39-2-6.38-4.7l-4.23 3.71C3.32 21.31 7.31 24 12 24z" fill="#34A853" />
-    </svg>
   );
 }
 

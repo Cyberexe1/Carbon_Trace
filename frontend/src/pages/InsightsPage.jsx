@@ -7,9 +7,10 @@
 //   - Carbon equivalents visual strip
 //   - GitHub-style 12-week activity heatmap
 //   - Top reduction opportunity cards
+//   - Gemini AI Analysis panel
 // =============================================================================
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -17,6 +18,7 @@ import {
 import DashboardShell from '../components/layout/DashboardShell';
 import MaterialIcon from '../components/atoms/MaterialIcon';
 import Badge from '../components/atoms/Badge';
+import { analyzeFootprint } from '../services/geminiService';
 
 // =============================================================================
 // SECTION: Mock data sets for the three chart periods
@@ -347,6 +349,115 @@ function ReductionOpportunities() {
 }
 
 // =============================================================================
+// SECTION: GeminiAnalysisPanel
+// Calls Gemini to generate a personalised 3-bullet carbon footprint analysis.
+// Uses the same mock stats that drive the rest of the page.
+// =============================================================================
+
+// Stats payload derived from the mock data above
+const ANALYSIS_STATS = {
+  totalKg: 342,
+  categories: PIE_DATA.map((c) => ({ name: c.name, kg: c.kg, pct: c.value })),
+  vsAvgPct: -61,   // 61% below global average
+  trendPct: -18,   // 18% improvement vs last period
+};
+
+function GeminiAnalysisPanel() {
+  const [bullets, setBullets]   = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [error,   setError]     = useState(null);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setBullets(null);
+
+    const { text, error: err } = await analyzeFootprint(ANALYSIS_STATS);
+
+    setLoading(false);
+    if (err) { setError(err); return; }
+
+    // Split on bullet character — guard against model using "- " or "* " too
+    const parsed = text
+      .split('\n')
+      .map((l) => l.replace(/^[•\-\*]\s*/, '').trim())
+      .filter(Boolean);
+
+    setBullets(parsed);
+  }, []);
+
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#bdcaba]/30 mb-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-3">
+          {/* Gemini spark icon */}
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4285F4] via-[#9B72CF] to-[#D96570] flex items-center justify-center flex-shrink-0">
+            <MaterialIcon name="auto_awesome" fill={1} className="text-white text-xl" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-[#141b2b]">Gemini AI Analysis</h3>
+            <p className="text-xs text-[#3e4a3d]">Powered by Google Gemini · personalised to your data</p>
+          </div>
+        </div>
+        <button
+          onClick={run}
+          disabled={loading}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#4285F4] to-[#9B72CF] text-white text-sm font-bold shadow hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+          aria-label="Generate AI analysis"
+        >
+          {loading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" aria-hidden="true" />
+              Analysing…
+            </>
+          ) : (
+            <>
+              <MaterialIcon name="auto_awesome" fill={1} className="text-base" />
+              {bullets ? 'Regenerate' : 'Analyse My Data'}
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* States */}
+      {!bullets && !loading && !error && (
+        <div className="bg-[#f1f3ff] rounded-xl p-5 text-center">
+          <p className="text-sm text-[#3e4a3d]">
+            Click <strong>Analyse My Data</strong> to get a personalised 3-point summary from Gemini.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-[#fff1f0] border border-[#ffdad6] rounded-xl p-4 flex items-start gap-3" role="alert">
+          <MaterialIcon name="error" fill={1} className="text-[#ba1a1a] text-xl flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-[#ba1a1a] font-medium">{error}</p>
+        </div>
+      )}
+
+      {bullets && (
+        <ul className="space-y-3" aria-label="AI analysis results">
+          {bullets.map((b, i) => (
+            <li key={i} className="flex items-start gap-3 bg-[#f0fdf4] rounded-xl p-4">
+              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#4285F4] to-[#9B72CF] text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+              <p className="text-sm text-[#141b2b] leading-relaxed">{b}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Attribution */}
+      <p className="text-[10px] text-[#bdcaba] text-right mt-4 font-semibold">
+        Gemini 2.0 Flash · google.com/gemini
+      </p>
+    </div>
+  );
+}
+
+// =============================================================================
 // SECTION: InsightsPage — Default Export
 // =============================================================================
 export default function InsightsPage() {
@@ -366,6 +477,7 @@ export default function InsightsPage() {
 
       <SummaryStrip />
       <TrendChart />
+      <GeminiAnalysisPanel />
       <BreakdownAndComparison />
       <CarbonEquivalents />
       <ActivityHeatmap />
