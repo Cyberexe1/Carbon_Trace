@@ -7,7 +7,7 @@
 // /onboarding (first time) or /dashboard (returning user).
 // =============================================================================
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MaterialIcon from '../components/atoms/MaterialIcon';
 import Button from '../components/atoms/Button';
@@ -94,23 +94,26 @@ function PasswordStrengthMeter({ password }) {
 // Email + password form. Simulates auth by calling context login().
 // =============================================================================
 function LoginForm({ onSwitch }) {
-  const { login, isOnboarded } = useAuth();
+  const { login, isOnboarded, loading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading2, setLoading2] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) { setError('Please fill in all fields.'); return; }
-    setLoading(true);
+    setLoading2(true);
     setError('');
     const err = await login(email, password);
-    setLoading(false);
+    setLoading2(false);
     if (err) { setError(err); return; }
-    navigate(isOnboarded ? ROUTES.DASHBOARD : ROUTES.ONBOARDING);
+    // subscribeToAuthChanges will update isOnboarded async.
+    // Navigate to dashboard — App.jsx ProtectedRoute will redirect to
+    // /onboarding if isOnboarded is still false after auth settles.
+    navigate(ROUTES.DASHBOARD);
   };
 
   return (
@@ -120,13 +123,13 @@ function LoginForm({ onSwitch }) {
 
       {/* Error message */}
       {error && (
-        <div role="alert" className="mb-4 p-3 bg-[#ffdad6] text-[#93000a] rounded-lg text-sm flex items-center gap-2">
-          <MaterialIcon name="error" fill={1} className="text-base" />
+        <div id="login-error" role="alert" className="mb-4 p-3 bg-[#ffdad6] text-[#93000a] rounded-lg text-sm flex items-center gap-2">
+          <MaterialIcon name="error" fill={1} className="text-base" aria-hidden="true" />
           {error}
         </div>
       )}
 
-      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      <form className="space-y-5" onSubmit={handleSubmit} noValidate aria-describedby={error ? 'login-error' : undefined}>
         <div>
           <label htmlFor="login-email" className="block text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">
             Email Address
@@ -138,6 +141,7 @@ function LoginForm({ onSwitch }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@example.com"
+            aria-describedby={error ? 'login-error' : undefined}
             className="w-full px-4 py-3 bg-[#f1f3ff] rounded-lg border-0 focus:ring-2 focus:ring-[#006b2c] focus:bg-white transition-all placeholder:text-[#bdcaba] text-[#141b2b]"
           />
         </div>
@@ -172,8 +176,8 @@ function LoginForm({ onSwitch }) {
           </label>
           <a href="#" className="text-sm text-[#006b2c] font-semibold hover:underline">Forgot password?</a>
         </div>
-        <Button type="submit" fullWidth disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign In'}
+        <Button type="submit" fullWidth disabled={loading2}>
+          {loading2 ? 'Signing in…' : 'Sign In'}
         </Button>
       </form>
 
@@ -221,13 +225,13 @@ function RegisterForm({ onSwitch }) {
       <p className="text-base text-[#3e4a3d] mb-8">Join the community driving real environmental impact.</p>
 
       {error && (
-        <div role="alert" className="mb-4 p-3 bg-[#ffdad6] text-[#93000a] rounded-lg text-sm flex items-center gap-2">
-          <MaterialIcon name="error" fill={1} className="text-base" />
+        <div id="reg-error" role="alert" className="mb-4 p-3 bg-[#ffdad6] text-[#93000a] rounded-lg text-sm flex items-center gap-2">
+          <MaterialIcon name="error" fill={1} className="text-base" aria-hidden="true" />
           {error}
         </div>
       )}
 
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+      <form className="space-y-4" onSubmit={handleSubmit} noValidate aria-describedby={error ? 'reg-error' : undefined}>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="reg-first" className="block text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">

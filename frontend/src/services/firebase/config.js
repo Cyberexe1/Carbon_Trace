@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth }                         from 'firebase/auth';
+import { getAuth, browserSessionPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore }                    from 'firebase/firestore';
 import { getAnalytics, isSupported }       from 'firebase/analytics';
 
@@ -31,6 +31,10 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 // --- Service exports ---
 export const auth = getAuth(app);
 export const db   = getFirestore(app);
+
+// Use SESSION persistence — tokens live in sessionStorage, not localStorage
+// This means signing out on tab close, which is more secure for a web app.
+setPersistence(auth, browserSessionPersistence).catch(console.error);
 
 // Analytics only runs in browser contexts (not SSR / Node.js test runners)
 export const analyticsPromise = isSupported().then((yes) =>

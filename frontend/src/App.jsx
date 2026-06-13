@@ -29,9 +29,14 @@ import { ROUTES }     from './utils/constants';
 // SECTION: ProtectedRoute
 // Redirects unauthenticated users to /login.
 // Redirects non-onboarded users away from dashboard pages to /onboarding.
+// Shows nothing while auth state is still loading (avoids flash redirect).
 // =============================================================================
 function ProtectedRoute({ children, requireOnboarded = false }) {
-  const { user, isOnboarded } = useAuth();
+  const { user, isOnboarded, loading } = useAuth();
+
+  // Still waiting for Firebase + backend to resolve — render nothing
+  if (loading) return null;
+
   if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
   if (requireOnboarded && !isOnboarded) return <Navigate to={ROUTES.ONBOARDING} replace />;
   return children;

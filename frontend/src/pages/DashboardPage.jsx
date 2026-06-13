@@ -16,7 +16,7 @@ import MaterialIcon     from '../components/atoms/MaterialIcon';
 import Badge            from '../components/atoms/Badge';
 import Button           from '../components/atoms/Button';
 import { useAuth }      from '../context/AuthContext';
-import { usersAPI, recommendationsAPI, challengesAPI } from '../services/api';
+import { usersAPI, recommendationsAPI, challengesAPI, activitiesAPI } from '../services/api';
 import { ROUTES }       from '../utils/constants';
 
 // =============================================================================
@@ -24,6 +24,7 @@ import { ROUTES }       from '../utils/constants';
 // =============================================================================
 function useDashboard() {
   const [data,    setData]    = useState(null);
+  const [trend,   setTrend]   = useState([]);  // 7-day daily totals for WeeklyChart
   const [tips,    setTips]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
@@ -31,18 +32,20 @@ function useDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [dashRes, tipsRes] = await Promise.all([
+    const [dashRes, tipsRes, trendRes] = await Promise.all([
       usersAPI.dashboard(),
       recommendationsAPI.list(),
+      activitiesAPI.trend(7),   // daily totals for WeeklyChart
     ]);
     if (dashRes.error) setError(dashRes.error);
     else setData(dashRes.data);
-    if (!tipsRes.error) setTips(tipsRes.data || []);
+    if (!tipsRes.error)  setTips(tipsRes.data || []);
+    if (!trendRes.error) setTrend(trendRes.data?.trend || []);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  return { data, tips, setTips, loading, error, reload: load };
+  return { data, trend, tips, setTips, loading, error, reload: load };
 }
 
 // =============================================================================
@@ -159,20 +162,25 @@ function StatCards({ weekCategories = [], streak = 0 }) {
 }
 
 // =============================================================================
-// SECTION: WeeklyChart — real 7-day trend from API
+// SECTION: WeeklyChart — real 7-day daily totals from activitiesAPI.trend()
 // =============================================================================
 function WeeklyChart({ trend = [] }) {
   const GOAL = 10;
-
-  // Build Mon-Sun array filling gaps with 0
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // trend is Array<{ date: "YYYY-MM-DD", total_kg: "3.200" }>
+  // Map each date to the correct Mon-Sun slot, fill missing days with 0
   const trendMap = Object.fromEntries(
     trend.map((t) => {
       const d = new Date(t.date);
-      return [days[d.getDay() === 0 ? 6 : d.getDay() - 1], parseFloat(t.total_kg)];
+      // getDay(): 0=Sun,1=Mon...6=Sat → convert to Mon-based index
+      const idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
+      return [days[idx], parseFloat(t.total_kg)];
     })
   );
   const chartData = days.map((day) => ({ day, value: trendMap[day] ?? 0 }));
+
+  const hasData = chartData.some((d) => d.value > 0);
 
   return (
     <section className="bg-white p-6 rounded-xl shadow-sm border border-[#bdcaba]/30" aria-labelledby="chart-heading">
@@ -180,32 +188,51 @@ function WeeklyChart({ trend = [] }) {
         <h3 id="chart-heading" className="text-lg font-semibold text-[#141b2b]">Weekly Emissions vs Goal</h3>
         <div className="flex gap-4 text-[10px] font-bold uppercase">
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-full bg-[#006b2c] inline-block" /> Actual
+            <span className="w-3 h-3 rounded-full bg-[#006b2c] inline-block" aria-hidden="true" /> Actual
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-full bg-[#bdcaba] inline-block" /> Goal
+            <span className="w-3 h-3 rounded-full bg-[#bdcaba] inline-block" aria-hidden="true" /> Goal
           </span>
         </div>
       </div>
-      <div aria-hidden="true">
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={chartData} barSize={32} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-            <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#3e4a3d', fontWeight: 600 }} axisLine={false} tickLine={false} />
-            <YAxis hide />
-            <Tooltip cursor={{ fill: '#f1f3ff' }}
-              contentStyle={{ background: '#fff', border: '1px solid #bdcaba', borderRadius: '8px', fontSize: '12px' }}
-              formatter={(v) => [`${v} kg`, 'Emissions']} />
-            <ReferenceLine y={GOAL} stroke="#bdcaba" strokeDasharray="4 4"
-              label={{ value: 'Goal', fill: '#bdcaba', fontSize: 10, position: 'right' }} />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-              {chartData.map((entry, i) => (
-                <Cell key={i}
-                  fill={entry.value > GOAL ? '#ba1a1a' : entry.day === 'Sat' ? '#8d4b00' : '#006b2c'} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+
+      {/* Accessible data table for screen readers */}
+      <table className="sr-only">
+        <caption>Weekly carbon emissions by day</caption>
+        <thead><tr><th scope="col">Day</th><th scope="col">kg CO₂e</th></tr></thead>
+        <tbody>
+          {chartData.map((d) => <tr key={d.day}><td>{d.day}</td><td>{d.value} kg</td></tr>)}
+        </tbody>
+      </table>
+
+      {!hasData ? (
+        <div className="h-[220px] flex items-center justify-center">
+          <div className="text-center">
+            <MaterialIcon name="bar_chart" className="text-[#bdcaba] text-5xl block mx-auto mb-2" aria-hidden="true" />
+            <p className="text-sm text-[#3e4a3d]">No activity logged this week yet.</p>
+          </div>
+        </div>
+      ) : (
+        <div aria-hidden="true">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} barSize={32} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#3e4a3d', fontWeight: 600 }} axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Tooltip cursor={{ fill: '#f1f3ff' }}
+                contentStyle={{ background: '#fff', border: '1px solid #bdcaba', borderRadius: '8px', fontSize: '12px' }}
+                formatter={(v) => [`${v.toFixed(2)} kg`, 'Emissions']} />
+              <ReferenceLine y={GOAL} stroke="#bdcaba" strokeDasharray="4 4"
+                label={{ value: 'Goal', fill: '#bdcaba', fontSize: 10, position: 'right' }} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, i) => (
+                  <Cell key={i}
+                    fill={entry.value > GOAL ? '#ba1a1a' : entry.day === 'Sat' ? '#8d4b00' : '#006b2c'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </section>
   );
 }
@@ -386,12 +413,18 @@ function RecentActivity({ activities = [] }) {
 // =============================================================================
 function LoadingSkeleton() {
   return (
-    <div className="flex flex-col gap-5 animate-pulse">
+    <div
+      className="flex flex-col gap-5 animate-pulse"
+      aria-busy="true"
+      aria-label="Loading dashboard data"
+      role="status"
+    >
       <div className="bg-white rounded-xl h-40 w-full" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1,2,3,4].map((i) => <div key={i} className="bg-white rounded-xl h-24" />)}
       </div>
       <div className="bg-white rounded-xl h-64 w-full" />
+      <span className="sr-only">Loading your dashboard, please wait…</span>
     </div>
   );
 }
@@ -402,7 +435,7 @@ function LoadingSkeleton() {
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data, tips, setTips, loading, error } = useDashboard();
+  const { data, trend, tips, setTips, loading, error } = useDashboard();
 
   return (
     <div className="bg-[#f9f9ff] min-h-screen">
@@ -426,7 +459,7 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
               <div className="md:col-span-8">
-                <WeeklyChart trend={data?.recentActivities ?? []} />
+                <WeeklyChart trend={trend} />
               </div>
               <div className="md:col-span-4">
                 <RecommendationCards tips={tips} setTips={setTips} />

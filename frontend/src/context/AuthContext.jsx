@@ -76,6 +76,8 @@ export function AuthProvider({ children }) {
 
   // -------------------------------------------------------------------------
   // login — Firebase verifies credentials and returns the user.
+  // isOnboarded is resolved by subscribeToAuthChanges — do not navigate
+  // here; let the caller wait for loading to settle.
   // -------------------------------------------------------------------------
   const login = useCallback(async (email, password) => {
     const { user: fbUser, error } = await signInWithEmail(email, password);
@@ -87,14 +89,8 @@ export function AuthProvider({ children }) {
       email: fbUser.email,
     });
 
-    // Check onboarded flag from backend
-    try {
-      const { data } = await authAPI.me();
-      if (data?.isOnboarded) setIsOnboarded(true);
-    } catch {
-      // ignore
-    }
-
+    // isOnboarded is set by subscribeToAuthChanges → authAPI.me()
+    // No need to call it again here — avoids race condition.
     return null;
   }, []);
 

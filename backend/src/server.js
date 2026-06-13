@@ -50,6 +50,32 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // =============================================================================
+// SECTION: Rate Limiting
+// Prevents brute-force and abuse on all API routes.
+// Auth endpoints are stricter — 20 req/15min vs 200 req/15min for API.
+// =============================================================================
+const rateLimit = require('express-rate-limit');
+
+const apiLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000, // 15 minutes
+  max:              200,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message:          { error: 'Too many requests. Please try again in 15 minutes.' },
+});
+
+const authLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000,
+  max:              20,              // Stricter for auth endpoints
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message:          { error: 'Too many auth attempts. Please try again in 15 minutes.' },
+});
+
+app.use('/api/', apiLimiter);
+app.use('/api/auth/', authLimiter);
+
+// =============================================================================
 // SECTION: Routes
 // All API routes are mounted under /api
 // =============================================================================

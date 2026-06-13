@@ -2,13 +2,23 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-// =============================================================================
-// Vite Configuration
-// Adds React plugin for JSX/HMR and Tailwind CSS via the official Vite plugin
-// =============================================================================
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
+  plugins: [react(), tailwindcss()],
+
+  // =============================================================================
+  // SECTION: Vitest configuration
+  // =============================================================================
+  test: {
+    environment: 'jsdom',
+    globals:     true,
+    setupFiles:  ['./src/test/setup.js'],
+    // Pass the React plugin so JSX transform works in test environment
+    plugins:     [react()],
+    coverage: {
+      provider:   'v8',
+      reporter:   ['text', 'html'],
+      include:    ['src/**/*.{js,jsx}'],
+      exclude:    ['src/test/**', 'src/main.jsx'],
+    },
+  },
 })
