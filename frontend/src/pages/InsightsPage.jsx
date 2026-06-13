@@ -389,7 +389,7 @@ export default function InsightsPage() {
         </div>
       </div>
 
-      <main id="insights-content">
+      <main id="insights-content" aria-busy={loading} aria-live="polite">
         <SummaryStrip summary={summary} />
         <TrendChart trend={trend} period={period} onPeriodChange={setPeriod} loading={loading} />
         <BreakdownAndComparison summary={summary} />

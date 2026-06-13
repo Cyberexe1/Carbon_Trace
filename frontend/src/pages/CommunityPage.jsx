@@ -345,8 +345,14 @@ export default function CommunityPage() {
       {/* Challenges grid */}
       <h2 className="text-lg font-bold text-[#141b2b] mb-4">Active Challenges</h2>
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading challenges"
+        >
           {[1,2,3].map((i) => <div key={i} className="h-48 bg-[#f1f3ff] rounded-2xl animate-pulse" />)}
+          <span className="sr-only">Loading community challenges, please wait…</span>
         </div>
       ) : challenges.length === 0 ? (
         <div className="bg-[#f1f3ff] rounded-2xl p-10 text-center border-2 border-dashed border-[#bdcaba] mb-8">

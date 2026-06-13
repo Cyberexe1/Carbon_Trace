@@ -275,6 +275,8 @@ export default function LogActivityPage() {
   const [toast,       setToast]       = useState('');
   const [saving,      setSaving]      = useState(false);
   const [loadingLog,  setLoadingLog]  = useState(true);
+  const [importing,   setImporting]   = useState(false);
+  const csvInputRef = useRef(null);
 
   const category = CATEGORIES.find((c) => c.id === selCategory);
   const subtype  = category?.subtypes.find((s) => s.id === selSubtype);
@@ -334,6 +336,64 @@ export default function LogActivityPage() {
     }
   };
 
+  // ==========================================================================
+  // SECTION: handleCsvImport — FR-013 CSV bulk import
+  // Expected CSV format (header row required):
+  //   category,subtype,quantity,unit,carbon_kg,notes,logged_date
+  // Rows with missing required fields are skipped with a warning.
+  // ==========================================================================
+  const handleCsvImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ''; // reset so same file can be re-selected
+
+    setImporting(true);
+    const text = await file.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+
+    const required = ['category', 'subtype', 'quantity', 'unit', 'carbon_kg'];
+    const missingHeaders = required.filter((r) => !headers.includes(r));
+    if (missingHeaders.length) {
+      showToast(`Error: CSV missing columns: ${missingHeaders.join(', ')}`);
+      setImporting(false);
+      return;
+    }
+
+    let imported = 0;
+    let failed   = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map((c) => c.trim());
+      const row  = Object.fromEntries(headers.map((h, idx) => [h, cols[idx] ?? '']));
+
+      if (!row.category || !row.subtype || !row.quantity || !row.unit) {
+        failed++;
+        continue;
+      }
+
+      const { data, error } = await activitiesAPI.create({
+        category:    row.category.toLowerCase(),
+        subtype:     row.subtype.toLowerCase(),
+        quantity:    parseFloat(row.quantity) || 0,
+        unit:        row.unit,
+        carbon_kg:   parseFloat(row.carbon_kg) || 0,
+        notes:       row.notes || '',
+        logged_date: row.logged_date || new Date().toISOString().split('T')[0],
+      });
+
+      if (error) { failed++; }
+      else { setLogged((prev) => [data, ...prev]); imported++; }
+    }
+
+    setImporting(false);
+    showToast(
+      failed > 0
+        ? `Imported ${imported} activities (${failed} rows skipped)`
+        : `Imported ${imported} activities successfully`
+    );
+  };
+
   return (
     <DashboardShell>
       {/* Toast */}
@@ -351,6 +411,30 @@ export default function LogActivityPage() {
         <div>
           <h1 className="text-3xl font-bold text-[#141b2b]">Log Activity</h1>
           <p className="text-sm text-[#3e4a3d] mt-1">What did you do today? We'll calculate the carbon impact instantly.</p>
+        </div>
+        {/* FR-013: CSV bulk import */}
+        <div className="hidden md:block">
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleCsvImport}
+            className="sr-only"
+            aria-label="Import activities from CSV file"
+            id="csv-file-input"
+          />
+          <button
+            onClick={() => csvInputRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-2 border border-[#bdcaba] px-4 py-2 rounded-xl text-sm font-semibold text-[#3e4a3d] hover:bg-[#e9edff] transition-colors disabled:opacity-50"
+            aria-label="Import CSV file"
+          >
+            {importing ? (
+              <><span className="w-4 h-4 border-2 border-[#bdcaba] border-t-[#006b2c] rounded-full animate-spin" aria-hidden="true" />Importing…</>
+            ) : (
+              <><MaterialIcon name="upload_file" className="text-lg" aria-hidden="true" />Import CSV</>
+            )}
+          </button>
         </div>
       </div>
 

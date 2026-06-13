@@ -6,15 +6,16 @@
 
 // --- Route Paths ---
 export const ROUTES = {
-  HOME: '/',
-  LOGIN: '/login',
-  ONBOARDING: '/onboarding',
+  HOME:      '/',
+  LOGIN:     '/login',
+  ONBOARDING:'/onboarding',
   DASHBOARD: '/dashboard',
-  LOG: '/dashboard/log',
-  INSIGHTS: '/dashboard/insights',
-  GOALS: '/dashboard/goals',
+  LOG:       '/dashboard/log',
+  INSIGHTS:  '/dashboard/insights',
+  GOALS:     '/dashboard/goals',
   COMMUNITY: '/dashboard/community',
-  LEARN: '/dashboard/learn',
+  LEARN:     '/dashboard/learn',
+  SETTINGS:  '/dashboard/settings',
 };
 
 // --- Emission Categories ---
@@ -127,6 +128,7 @@ export const NAV_ITEMS = [
   { id: 'goals',     icon: 'track_changes',label: 'Goals',       path: ROUTES.GOALS },
   { id: 'community', icon: 'group',        label: 'Community',   path: ROUTES.COMMUNITY },
   { id: 'learn',     icon: 'menu_book',    label: 'Learn',       path: ROUTES.LEARN },
+  { id: 'settings',  icon: 'settings',     label: 'Settings',    path: ROUTES.SETTINGS },
 ];
 
 // --- Mobile bottom nav (condensed) ---

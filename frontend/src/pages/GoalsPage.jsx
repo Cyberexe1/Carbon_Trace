@@ -339,8 +339,14 @@ export default function GoalsPage() {
       <h2 className="text-lg font-bold text-[#141b2b] mb-4">Active Goals ({activeGoals.length})</h2>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-8"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading goals"
+        >
           {[1,2,3].map((i) => <div key={i} className="bg-white rounded-2xl h-56 animate-pulse" />)}
+          <span className="sr-only">Loading your goals, please wait…</span>
         </div>
       ) : activeGoals.length === 0 ? (
         <div className="bg-[#f1f3ff] rounded-2xl p-12 text-center border-2 border-dashed border-[#bdcaba] mb-8">

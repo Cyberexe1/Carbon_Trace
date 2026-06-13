@@ -109,15 +109,21 @@ function HeroScoreWidget({ todayKg = 0, streak = 0 }) {
         )}
       </div>
       <div className="flex md:flex-col gap-6 md:gap-4 z-10 text-center md:text-right flex-shrink-0">
-        {[
-          { label: 'Daily Goal', value: `${goal} kg` },
-          { label: 'Streak',     value: `${streak} days`, green: streak > 0 },
-        ].map((s) => (
-          <div key={s.label}>
-            <p className="text-[10px] text-[#3e4a3d] uppercase font-bold mb-0.5">{s.label}</p>
-            <p className={`font-mono font-bold text-lg ${s.green ? 'text-[#006b2c]' : 'text-[#141b2b]'}`}>{s.value}</p>
-          </div>
-        ))}
+        <div>
+          <p className="text-[10px] text-[#3e4a3d] uppercase font-bold mb-0.5">Daily Goal</p>
+          <p className="font-mono font-bold text-lg text-[#141b2b]">{goal} kg</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#3e4a3d] uppercase font-bold mb-1">Streak</p>
+          {streak > 0 ? (
+            <Badge variant="green" className="justify-center">
+              <MaterialIcon name="local_fire_department" fill={1} className="text-xs" aria-hidden="true" />
+              {streak} day{streak !== 1 ? 's' : ''}
+            </Badge>
+          ) : (
+            <p className="font-mono font-bold text-lg text-[#141b2b]">0 days</p>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -149,11 +155,20 @@ function StatCards({ weekCategories = [], streak = 0 }) {
           </div>
           <p className="text-[11px] font-bold text-[#3e4a3d] uppercase tracking-wider mb-1">{s.label}</p>
           <p className="font-mono font-bold text-lg text-[#141b2b]">
-            {s.isStreak
-              ? `Day ${s.value}`
-              : s.value !== null
-              ? `${s.value.toFixed(1)} kg`
-              : <span className="text-[#bdcaba] text-sm font-normal">No data</span>}
+            {s.isStreak ? (
+              s.value > 0 ? (
+                <Badge variant="green" className="mt-1">
+                  <MaterialIcon name="local_fire_department" fill={1} className="text-xs" aria-hidden="true" />
+                  Day {s.value}
+                </Badge>
+              ) : (
+                <span className="text-[#bdcaba] text-sm font-normal">No streak yet</span>
+              )
+            ) : s.value !== null ? (
+              `${s.value.toFixed(1)} kg`
+            ) : (
+              <span className="text-[#bdcaba] text-sm font-normal">No data</span>
+            )}
           </p>
         </article>
       ))}

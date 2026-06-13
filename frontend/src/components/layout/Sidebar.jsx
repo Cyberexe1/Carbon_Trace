@@ -74,20 +74,6 @@ export default function Sidebar() {
       {/* --- Utility links --- */}
       <div className="flex flex-col gap-1">
         <button
-          className="flex items-center gap-4 px-4 py-2 rounded-lg text-[#3e4a3d] hover:bg-[#e1e8fd] transition-all text-[12px] font-medium uppercase tracking-wider"
-          aria-label="Settings"
-        >
-          <MaterialIcon name="settings" className="text-xl" />
-          Settings
-        </button>
-        <button
-          className="flex items-center gap-4 px-4 py-2 rounded-lg text-[#3e4a3d] hover:bg-[#e1e8fd] transition-all text-[12px] font-medium uppercase tracking-wider"
-          aria-label="Help Center"
-        >
-          <MaterialIcon name="help" className="text-xl" />
-          Help Center
-        </button>
-        <button
           onClick={handleLogout}
           className="flex items-center gap-4 px-4 py-2 rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6] transition-all text-[12px] font-medium uppercase tracking-wider"
           aria-label="Sign out"
