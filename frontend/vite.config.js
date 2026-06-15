@@ -1,9 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Bundle size analyzer — run `npm run build` then open dist/stats.html
+    // Only active during production build to avoid dev server overhead
+    visualizer({
+      filename:  'dist/stats.html',
+      open:      false,
+      gzipSize:  true,
+      brotliSize: true,
+    }),
+  ],
 
   // =============================================================================
   // SECTION: Vitest configuration
@@ -12,7 +24,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals:     true,
     setupFiles:  ['./src/test/setup.js'],
-    // Pass the React plugin so JSX transform works in test environment
     plugins:     [react()],
     coverage: {
       provider:   'v8',

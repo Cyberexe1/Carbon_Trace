@@ -108,10 +108,11 @@ describe('LogActivityPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /diet/i }));
     await waitFor(() => screen.getByRole('button', { name: /beef meal/i }));
     fireEvent.click(screen.getByRole('button', { name: /beef meal/i }));
-    // Log Activity button renders after subtype + date step — find by text
-    await waitFor(() => screen.getByText(/log activity/i, { selector: 'button, [type="button"]' }));
-    const logBtn = screen.getByText(/log activity/i, { selector: 'button, [type="button"]' });
-    fireEvent.click(logBtn);
+    // Log Activity button renders after subtype + date step — find by accessible name
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /log activity/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /log activity/i }));
     await waitFor(() => {
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({ category: 'diet', subtype: 'beef' })

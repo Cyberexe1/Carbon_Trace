@@ -288,13 +288,16 @@ export default function LogActivityPage() {
 
   const todayTotal = useMemo(() => logged.reduce((sum, a) => sum + parseFloat(a.carbon_kg), 0), [logged]);
 
-  // Load today's activities on mount
+  // Load today's activities on mount — cancelled flag prevents state update after unmount
   useEffect(() => {
+    let cancelled = false;
     const today = new Date().toISOString().split('T')[0];
     activitiesAPI.list({ date_from: today, date_to: today, limit: 50 }).then(({ data }) => {
+      if (cancelled) return;
       if (data?.activities) setLogged(data.activities);
       setLoadingLog(false);
     });
+    return () => { cancelled = true; };
   }, []);
 
   const showToast = (msg) => {

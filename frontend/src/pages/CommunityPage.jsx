@@ -136,19 +136,19 @@ function Leaderboard({ challenges }) {
   const [loading,     setLoading]     = useState(false);
 
   // Pick first available challenge to show leaderboard for
-  const targetChallenge = challenges[0];
+  const targetId = challenges[0]?.id;
 
   useEffect(() => {
-    if (!targetChallenge) return;
+    if (!targetId) return;
     setLoading(true);
-    challengesAPI.leaderboard(targetChallenge.id).then(({ data }) => {
+    challengesAPI.leaderboard(targetId).then(({ data }) => {
       if (data) {
         setLeaderboard(data.leaderboard || []);
         setMyRank(data.myRank);
       }
       setLoading(false);
     });
-  }, [targetChallenge]);
+  }, [targetId]);  // ← stable primitive ID, not object reference
 
   const podium = leaderboard.slice(0, 3);
   const rest   = leaderboard.slice(3);

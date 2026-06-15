@@ -80,11 +80,12 @@ router.get('/summary', async (req, res, next) => {
   const userId = req.user.id;
   const period = req.query.period || 'month';
 
+  // Plain interval strings — passed as $2 parameter, not interpolated
   const intervalMap = {
-    today: "NOW() - INTERVAL '1 day'",
-    week:  "NOW() - INTERVAL '7 days'",
-    month: "NOW() - INTERVAL '30 days'",
-    year:  "NOW() - INTERVAL '365 days'",
+    today: '1 day',
+    week:  '7 days',
+    month: '30 days',
+    year:  '365 days',
   };
 
   const since = intervalMap[period] || intervalMap.month;
@@ -97,10 +98,10 @@ router.get('/summary', async (req, res, next) => {
          COUNT(*)                             AS activity_count
        FROM activities
        WHERE user_id = $1
-         AND logged_date >= ${since}
+         AND logged_date >= NOW() - $2::interval
        GROUP BY category
        ORDER BY total_kg DESC`,
-      [userId]
+      [userId, since]
     );
 
     // Also return the grand total
@@ -128,14 +129,14 @@ router.get('/trend', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT
-         logged_date::text          AS date,
-         ROUND(SUM(carbon_kg)::numeric, 3) AS total_kg
+         logged_date::text                   AS date,
+         ROUND(SUM(carbon_kg)::numeric, 3)   AS total_kg
        FROM activities
        WHERE user_id = $1
-         AND logged_date >= CURRENT_DATE - INTERVAL '${days} days'
+         AND logged_date >= CURRENT_DATE - ($2 || ' days')::interval
        GROUP BY logged_date
        ORDER BY logged_date ASC`,
-      [userId]
+      [userId, days]
     );
     res.json({ days, trend: rows });
   } catch (err) {
@@ -154,7 +155,8 @@ const activityRules = [
   body('quantity').isFloat({ min: 0 }).withMessage('quantity must be a non-negative number'),
   body('unit').trim().notEmpty().withMessage('unit is required'),
   body('carbon_kg').isFloat({ min: 0 }).withMessage('carbon_kg must be a non-negative number'),
-  body('notes').optional().isLength({ max: 500 }).withMessage('notes max 500 characters'),
+  // Sanitize notes — trim whitespace and escape HTML to prevent XSS if ever rendered unsanitized
+  body('notes').optional().trim().escape().isLength({ max: 500 }).withMessage('notes max 500 characters'),
   body('logged_date').optional().isISO8601().withMessage('logged_date must be a valid date'),
 ];
 

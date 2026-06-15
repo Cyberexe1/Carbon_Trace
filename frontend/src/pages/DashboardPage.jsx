@@ -29,22 +29,26 @@ function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    const [dashRes, tipsRes, trendRes] = await Promise.all([
+    Promise.all([
       usersAPI.dashboard(),
       recommendationsAPI.list(),
-      activitiesAPI.trend(7),   // daily totals for WeeklyChart
-    ]);
-    if (dashRes.error) setError(dashRes.error);
-    else setData(dashRes.data);
-    if (!tipsRes.error)  setTips(tipsRes.data || []);
-    if (!trendRes.error) setTrend(trendRes.data?.trend || []);
-    setLoading(false);
+      activitiesAPI.trend(7),
+    ]).then(([dashRes, tipsRes, trendRes]) => {
+      if (cancelled) return;
+      if (dashRes.error) setError(dashRes.error);
+      else setData(dashRes.data);
+      if (!tipsRes.error)  setTips(tipsRes.data || []);
+      if (!trendRes.error) setTrend(trendRes.data?.trend || []);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => load(), [load]);
   return { data, trend, tips, setTips, loading, error, reload: load };
 }
 

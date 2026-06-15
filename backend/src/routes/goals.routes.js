@@ -78,7 +78,12 @@ router.post('/', goalRules, validate, async (req, res, next) => {
 // Body: { progress_kg?, status? }
 // Automatically marks as 'completed' when progress_kg >= target_kg.
 // =============================================================================
-router.patch('/:id', async (req, res, next) => {
+const patchGoalRules = [
+  body('progress_kg').optional().isFloat({ min: 0 }).withMessage('progress_kg must be a non-negative number'),
+  body('status').optional().isIn(['active','completed','failed']).withMessage('Invalid status'),
+];
+
+router.patch('/:id', patchGoalRules, validate, async (req, res, next) => {
   const { progress_kg, status } = req.body;
   try {
     // Fetch current goal first

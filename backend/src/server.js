@@ -31,8 +31,37 @@ const { errorHandler } = require('./middleware/errorHandler');
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// --- Security headers (helmet defaults are sensible) ---
-app.use(helmet());
+// Trust the first proxy hop (Nginx / Render / Railway etc.)
+// Required for express-rate-limit to use the real client IP.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// --- Security headers ---
+// Remove unsafe-inline from scriptSrc in production — only allow in dev for Vite HMR
+const isProd = process.env.NODE_ENV === 'production';
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  isProd ? ["'self'"] : ["'self'", "'unsafe-inline'"],
+      styleSrc:   ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc:    ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc:     ["'self'", 'data:', 'https:'],
+      connectSrc: [
+        "'self'",
+        'https://*.googleapis.com',
+        'https://*.neon.tech',
+        'https://firebaseinstallations.googleapis.com',
+        'https://identitytoolkit.googleapis.com',
+        process.env.FRONTEND_URL || 'http://localhost:5173',
+      ],
+      frameSrc:  ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: isProd ? [] : null,
+    },
+  },
+}));
 
 // --- CORS: allow only the frontend origin ---
 app.use(cors({
@@ -114,11 +143,14 @@ app.use(errorHandler);
 
 // =============================================================================
 // SECTION: Server Start
+// Only bind to port when running directly — not when imported by tests.
 // =============================================================================
-app.listen(PORT, () => {
-  console.log(`[server] CarbonTrace API running on http://localhost:${PORT}`);
-  console.log(`[server] Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`[server] Frontend origin: ${process.env.FRONTEND_URL}`);
-});
+if (require.main === module || process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[server] CarbonTrace API running on http://localhost:${PORT}`);
+    console.log(`[server] Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`[server] Frontend origin: ${process.env.FRONTEND_URL}`);
+  });
+}
 
 module.exports = app; // exported for testing

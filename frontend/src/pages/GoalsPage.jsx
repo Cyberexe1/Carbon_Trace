@@ -251,18 +251,22 @@ export default function GoalsPage() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const loadGoals = useCallback(async () => {
+  const loadGoals = useCallback(() => {
+    let cancelled = false;
     setLoading(true);
-    const [activeRes, completedRes] = await Promise.all([
+    Promise.all([
       goalsAPI.list('active'),
       goalsAPI.list('completed'),
-    ]);
-    if (!activeRes.error)    setActiveGoals(activeRes.data || []);
-    if (!completedRes.error) setCompletedGoals(completedRes.data || []);
-    setLoading(false);
+    ]).then(([activeRes, completedRes]) => {
+      if (cancelled) return;
+      if (!activeRes.error)    setActiveGoals(activeRes.data || []);
+      if (!completedRes.error) setCompletedGoals(completedRes.data || []);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => { loadGoals(); }, [loadGoals]);
+  useEffect(() => loadGoals(), [loadGoals]);
 
   // Mark as completed → PATCH /api/goals/:id
   const handleComplete = async (id) => {
