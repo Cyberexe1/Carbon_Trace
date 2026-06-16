@@ -419,12 +419,13 @@ export default function GoalsPage() {
       <div>
         <button onClick={() => setShowCompleted((v) => !v)}
           className="flex items-center gap-2 text-lg font-bold text-[#141b2b] mb-4 hover:text-[#006b2c] transition-colors"
-          aria-expanded={showCompleted}>
+          aria-expanded={showCompleted}
+          aria-controls="completed-goals-list">
           <MaterialIcon name={showCompleted ? 'expand_less' : 'expand_more'} className="text-xl" />
           Completed Goals ({completedGoals.length})
         </button>
         {showCompleted && (
-          <div className="bg-white rounded-2xl shadow-sm border border-[#bdcaba]/30 overflow-hidden">
+          <div id="completed-goals-list" className="bg-white rounded-2xl shadow-sm border border-[#bdcaba]/30 overflow-hidden">
             {completedGoals.length === 0 ? (
               <p className="text-sm text-[#3e4a3d] p-6 text-center">No completed goals yet.</p>
             ) : completedGoals.map((g, i) => (

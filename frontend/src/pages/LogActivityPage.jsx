@@ -602,8 +602,9 @@ export default function LogActivityPage() {
                   <input type="number" min="0" step="0.5" value={quantity}
                     onChange={(e) => setQuantity(Math.max(0, parseFloat(e.target.value) || 0))}
                     className="w-28 text-center font-mono text-4xl font-bold text-[#141b2b] bg-transparent border-b-2 border-[#006b2c] focus:outline-none"
-                    aria-label={`Quantity in ${subtype.unit}`} />
-                  <p className="text-sm text-[#3e4a3d] mt-1 font-semibold">{subtype.unit}</p>
+                    aria-label={`Quantity in ${subtype.unit}`}
+                    aria-describedby="qty-unit-label" />
+                  <p id="qty-unit-label" className="text-sm text-[#3e4a3d] mt-1 font-semibold">{subtype.unit}</p>
                 </div>
                 <button onClick={() => setQuantity((q) => parseFloat((q + 0.5).toFixed(1)))}
                   className="w-11 h-11 rounded-full bg-[#f1f3ff] text-[#141b2b] text-2xl font-bold flex items-center justify-center hover:bg-[#e1e8fd]"

@@ -74,8 +74,8 @@ function PasswordStrengthMeter({ password }) {
   const widths = ['w-0', 'w-1/3', 'w-2/3', 'w-full'];
 
   return (
-    <div className="mt-2">
-      <div className="h-1.5 w-full bg-[#dce2f7] rounded-full overflow-hidden">
+    <div className="mt-2" role="status" aria-live="polite" aria-atomic="true" aria-label={password.length > 0 ? `Password strength: ${labels[level]}` : 'Enter a password to see strength'}>
+      <div className="h-1.5 w-full bg-[#dce2f7] rounded-full overflow-hidden" aria-hidden="true">
         <div
           className={`h-full rounded-full transition-all duration-300 ${colors[level]} ${widths[level]}`}
         />

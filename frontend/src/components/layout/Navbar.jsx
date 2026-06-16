@@ -59,6 +59,7 @@ export default function Navbar() {
           <button
             className="hidden md:block px-4 py-2 text-[#006b2c] font-semibold text-sm hover:opacity-80 transition-opacity"
             onClick={() => navigate(ROUTES.LOGIN)}
+            aria-label="Sign in to your account"
           >
             Sign In
           </button>

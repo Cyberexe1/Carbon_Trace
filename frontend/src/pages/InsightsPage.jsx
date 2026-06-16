@@ -305,7 +305,7 @@ const ActivityHeatmap = memo(function ActivityHeatmap() {
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#bdcaba]/30 mb-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <h3 className="text-lg font-bold text-[#141b2b]">Activity Heatmap — Last 12 Weeks</h3>
-        <div className="flex items-center gap-2 text-[11px] text-[#3e4a3d] font-bold" aria-label="Heatmap legend">
+        <div className="flex items-center gap-2 text-[11px] text-[#3e4a3d] font-bold" aria-label="Heatmap legend: colours range from light (less activity) to dark green (more activity)">
           <span>Less</span>
           {HEAT_COLORS.map((c) => (
             <span key={c} className="w-4 h-4 rounded-sm" style={{ background: c }} aria-hidden="true" />
@@ -313,6 +313,11 @@ const ActivityHeatmap = memo(function ActivityHeatmap() {
           <span>More</span>
         </div>
       </div>
+      {/* Accessible summary for screen readers */}
+      <p className="sr-only">
+        Activity heatmap showing logging frequency over the last 12 weeks.
+        Darker green cells indicate more activities logged on that day.
+      </p>
       <div className="overflow-x-auto">
         <div className="flex gap-1 min-w-max" aria-hidden="true">
           <div className="flex flex-col gap-1 mr-1">
