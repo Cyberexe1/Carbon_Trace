@@ -23,20 +23,21 @@ router.use(requireAuth);
 router.get('/', async (req, res, next) => {
   const userId = req.user.id;
   try {
+    // Single JOIN replaces 4 correlated subqueries per challenge row.
+    // Aggregate stats (count, avg) computed once via GROUP BY;
+    // user-specific fields (joined, my_score_kg) extracted with conditional aggregation.
     const { rows } = await pool.query(
       `SELECT
          c.id, c.title, c.description, c.category,
          c.start_date, c.end_date,
-         (SELECT COUNT(*) FROM challenge_members WHERE challenge_id = c.id) AS participant_count,
-         (SELECT ROUND(AVG(score_kg)::numeric,1) FROM challenge_members WHERE challenge_id = c.id) AS avg_score_kg,
-         EXISTS (
-           SELECT 1 FROM challenge_members
-           WHERE challenge_id = c.id AND user_id = $1
-         ) AS joined,
-         (SELECT score_kg FROM challenge_members
-          WHERE challenge_id = c.id AND user_id = $1) AS my_score_kg
+         COUNT(cm.user_id)                                         AS participant_count,
+         ROUND(AVG(cm.score_kg)::numeric, 1)                       AS avg_score_kg,
+         BOOL_OR(cm.user_id = $1)                                  AS joined,
+         MAX(CASE WHEN cm.user_id = $1 THEN cm.score_kg END)       AS my_score_kg
        FROM challenges c
+       LEFT JOIN challenge_members cm ON cm.challenge_id = c.id
        WHERE c.end_date >= CURRENT_DATE
+       GROUP BY c.id, c.title, c.description, c.category, c.start_date, c.end_date
        ORDER BY c.start_date DESC`,
       [userId]
     );
@@ -76,32 +77,37 @@ router.post('/:id/join', async (req, res, next) => {
 router.get('/:id/leaderboard', async (req, res, next) => {
   const userId = req.user.id;
   try {
+    // Single query: CTE ranks all participants, then we pull the top 20
+    // and the current user's rank in one round-trip.
     const { rows } = await pool.query(
-      `SELECT
-         cm.user_id,
-         u.first_name,
-         ROUND(cm.score_kg::numeric, 2) AS score_kg,
-         ROW_NUMBER() OVER (ORDER BY cm.score_kg DESC) AS rank
-       FROM challenge_members cm
-       JOIN users u ON u.id = cm.user_id
-       WHERE cm.challenge_id = $1
-       ORDER BY cm.score_kg DESC
-       LIMIT 20`,
-      [req.params.id]
-    );
-
-    // Also find current user's rank even if outside top 20
-    const myRankRow = await pool.query(
-      `SELECT rank FROM (
-         SELECT user_id, ROW_NUMBER() OVER (ORDER BY score_kg DESC) AS rank
-         FROM challenge_members WHERE challenge_id = $1
-       ) ranked WHERE user_id = $2`,
+      `WITH ranked AS (
+         SELECT
+           cm.user_id,
+           u.first_name,
+           ROUND(cm.score_kg::numeric, 2) AS score_kg,
+           ROW_NUMBER() OVER (ORDER BY cm.score_kg DESC) AS rank
+         FROM challenge_members cm
+         JOIN users u ON u.id = cm.user_id
+         WHERE cm.challenge_id = $1
+       )
+       SELECT
+         user_id,
+         first_name,
+         score_kg,
+         rank,
+         rank <= 20 AS in_top20
+       FROM ranked
+       WHERE rank <= 20 OR user_id = $2
+       ORDER BY rank ASC`,
       [req.params.id, userId]
     );
 
+    const leaderboard = rows.filter((r) => r.in_top20);
+    const myRankRow   = rows.find((r) => String(r.user_id) === String(userId));
+
     res.json({
-      leaderboard: rows,
-      myRank:      myRankRow.rows[0]?.rank || null,
+      leaderboard,
+      myRank: myRankRow?.rank || null,
     });
   } catch (err) {
     next(err);

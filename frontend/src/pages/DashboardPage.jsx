@@ -429,7 +429,7 @@ const RecentActivity = memo(function RecentActivity({ activities = [] }) {
       )}
     </section>
   );
-}
+});
 
 // =============================================================================
 // SECTION: LoadingSkeleton

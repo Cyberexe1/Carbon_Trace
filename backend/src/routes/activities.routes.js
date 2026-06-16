@@ -133,7 +133,7 @@ router.get('/trend', async (req, res, next) => {
          ROUND(SUM(carbon_kg)::numeric, 3)   AS total_kg
        FROM activities
        WHERE user_id = $1
-         AND logged_date >= CURRENT_DATE - ($2 || ' days')::interval
+         AND logged_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
        GROUP BY logged_date
        ORDER BY logged_date ASC`,
       [userId, days]

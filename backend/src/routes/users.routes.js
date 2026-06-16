@@ -128,11 +128,12 @@ router.get('/dashboard', async (req, res, next) => {
       ),
     ]);
 
+    res.set('Cache-Control', 'private, max-age=30');
     res.json({
-      streak:       userRow.rows[0]?.streak      || 0,
-      todayKg:      parseFloat(todayRow.rows[0]?.today_kg) || 0,
-      weekCategories: weekRow.rows,
-      activeGoals:  parseInt(goalsRow.rows[0]?.active)    || 0,
+      streak:           userRow.rows[0]?.streak      || 0,
+      todayKg:          parseFloat(todayRow.rows[0]?.today_kg) || 0,
+      weekCategories:   weekRow.rows,
+      activeGoals:      parseInt(goalsRow.rows[0]?.active)    || 0,
       recentActivities: recentRow.rows,
     });
   } catch (err) {
