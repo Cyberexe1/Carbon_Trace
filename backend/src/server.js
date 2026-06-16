@@ -120,10 +120,17 @@ app.use('/api/recommendations', recommendationsRoutes);
 // Simple endpoint for uptime monitoring / load balancer probes.
 // =============================================================================
 app.get('/health', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const STATIC_DIR = path.join(__dirname, '..', 'public');
+  const hasIndex = fs.existsSync(path.join(STATIC_DIR, 'index.html'));
   res.json({
     status:    'ok',
     service:   'carbontrace-api',
     timestamp: new Date().toISOString(),
+    env:       process.env.NODE_ENV,
+    staticDir: STATIC_DIR,
+    hasIndex,
   });
 });
 
@@ -147,14 +154,10 @@ if (isProd) {
 
 // =============================================================================
 // SECTION: 404 Handler
-// Only fires for unmatched API routes. Non-API routes fall through to the
-// React catch-all above in production (or return 404 in dev).
+// Only fires for unmatched /api/* routes.
+// Non-API routes in production are handled by the React catch-all above.
 // =============================================================================
 app.use((req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
-  }
-  // In dev (no static serving), return a plain 404
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
 });
 

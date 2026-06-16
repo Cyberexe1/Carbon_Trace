@@ -1,0 +1,32 @@
+# gcloudignore — controls what gets uploaded to Cloud Build
+# This is separate from .dockerignore (which applies inside the Docker build)
+# Excluding node_modules here makes uploads go from minutes to seconds
+
+# Dependencies — reinstalled by Docker during build
+**/node_modules
+
+# Built artifacts — Docker rebuilds these
+# **/dist   ← intentionally NOT excluded: pre-built frontend dist is uploaded
+
+# Secrets — never upload
+**/.env
+**/.env.local
+
+# Test artifacts
+**/coverage
+**/.nyc_output
+**/playwright-report
+**/test-results
+**/e2e
+
+# Git + IDE
+.git
+.vscode
+.kiro
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vite analysis
+**/stats.html

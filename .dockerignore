@@ -2,7 +2,7 @@
 **/node_modules
 
 # Dev/test artifacts
-**/dist
+# **/dist  ← intentionally NOT excluded: pre-built frontend dist is uploaded
 **/.env
 **/.env.local
 **/coverage
