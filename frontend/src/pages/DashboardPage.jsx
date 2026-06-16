@@ -4,7 +4,7 @@
 // and recommendationsAPI.list(). All buttons wired to live endpoints.
 // =============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -30,22 +30,23 @@ function useDashboard() {
   const [error,   setError]   = useState(null);
 
   const load = useCallback(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     setLoading(true);
     setError(null);
     Promise.all([
       usersAPI.dashboard(),
       recommendationsAPI.list(),
-      activitiesAPI.trend(7),
+      activitiesAPI.trend(7, signal),
     ]).then(([dashRes, tipsRes, trendRes]) => {
-      if (cancelled) return;
+      if (signal.aborted) return;
       if (dashRes.error) setError(dashRes.error);
       else setData(dashRes.data);
       if (!tipsRes.error)  setTips(tipsRes.data || []);
       if (!trendRes.error) setTrend(trendRes.data?.trend || []);
       setLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => controller.abort();
   }, []);
 
   useEffect(() => load(), [load]);
@@ -55,7 +56,7 @@ function useDashboard() {
 // =============================================================================
 // SECTION: DashboardHeader
 // =============================================================================
-function DashboardHeader({ name }) {
+const DashboardHeader = memo(function DashboardHeader({ name }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   return (
@@ -75,12 +76,12 @@ function DashboardHeader({ name }) {
       </div>
     </header>
   );
-}
+});
 
 // =============================================================================
 // SECTION: HeroScoreWidget — shows real todayKg from API
 // =============================================================================
-function HeroScoreWidget({ todayKg = 0, streak = 0 }) {
+const HeroScoreWidget = memo(function HeroScoreWidget({ todayKg = 0, streak = 0 }) {
   const goal = 10;
   const pctAbove = todayKg > goal ? Math.round(((todayKg - goal) / goal) * 100) : 0;
   const status   = todayKg === 0 ? null : todayKg <= 5 ? 'green' : todayKg <= 10 ? 'amber' : 'red';
@@ -131,13 +132,16 @@ function HeroScoreWidget({ todayKg = 0, streak = 0 }) {
       </div>
     </section>
   );
-}
+});
 
 // =============================================================================
 // SECTION: StatCards — real category breakdown from API
 // =============================================================================
-function StatCards({ weekCategories = [], streak = 0 }) {
-  const catMap = Object.fromEntries(weekCategories.map((c) => [c.category, parseFloat(c.total_kg)]));
+const StatCards = memo(function StatCards({ weekCategories = [], streak = 0 }) {
+  const catMap = useMemo(
+    () => Object.fromEntries(weekCategories.map((c) => [c.category, parseFloat(c.total_kg)])),
+    [weekCategories]
+  );
 
   const stats = [
     { label: 'Transport', icon: 'commute',               value: catMap.transport ?? null, bg: 'bg-blue-50',   color: 'text-blue-600' },
@@ -178,12 +182,12 @@ function StatCards({ weekCategories = [], streak = 0 }) {
       ))}
     </div>
   );
-}
+});
 
 // =============================================================================
 // SECTION: WeeklyChart — real 7-day daily totals from activitiesAPI.trend()
 // =============================================================================
-function WeeklyChart({ trend = [] }) {
+const WeeklyChart = memo(function WeeklyChart({ trend = [] }) {
   const GOAL = 10;
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -254,7 +258,7 @@ function WeeklyChart({ trend = [] }) {
       )}
     </section>
   );
-}
+});
 
 // =============================================================================
 // SECTION: RecommendationCards — real tips from API with live Done/Skip
@@ -315,7 +319,7 @@ function RecommendationCards({ tips, setTips }) {
 // =============================================================================
 // SECTION: GoalsProgress — real active goals count from API
 // =============================================================================
-function GoalsProgress({ activeGoals = 0 }) {
+const GoalsProgress = memo(function GoalsProgress({ activeGoals = 0 }) {
   const navigate = useNavigate();
   return (
     <section className="bg-white p-6 rounded-xl shadow-sm border border-[#bdcaba]/30 flex flex-col gap-5"
@@ -333,7 +337,7 @@ function GoalsProgress({ activeGoals = 0 }) {
       </button>
     </section>
   );
-}
+});
 
 // =============================================================================
 // SECTION: CommunityChallengeBanner — Join wired to real API
@@ -376,7 +380,7 @@ function CommunityChallengeBanner() {
 // =============================================================================
 // SECTION: RecentActivity — real last 5 activities from API
 // =============================================================================
-function RecentActivity({ activities = [] }) {
+const RecentActivity = memo(function RecentActivity({ activities = [] }) {
   const navigate = useNavigate();
   const ICONS = { transport: 'commute', diet: 'restaurant', energy: 'bolt', shopping: 'shopping_bag', waste: 'delete' };
 

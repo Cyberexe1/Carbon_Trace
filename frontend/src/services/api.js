@@ -19,8 +19,10 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 // Gets a fresh Firebase ID token on every request (Firebase caches it and
 // only calls the network when the token is within 5 minutes of expiry).
 // Returns { data } on success, { error } on failure.
+// Accepts an optional AbortSignal so callers can cancel in-flight requests
+// when a component unmounts or the user navigates away.
 // =============================================================================
-async function request(method, path, body = null) {
+async function request(method, path, body = null, signal = null) {
   const headers = { 'Content-Type': 'application/json' };
 
   // Attach Firebase ID token if user is signed in
@@ -35,7 +37,8 @@ async function request(method, path, body = null) {
   }
 
   const options = { method, headers };
-  if (body) options.body = JSON.stringify(body);
+  if (body)   options.body   = JSON.stringify(body);
+  if (signal) options.signal = signal;
 
   try {
     const res  = await fetch(`${BASE_URL}${path}`, options);
@@ -47,16 +50,18 @@ async function request(method, path, body = null) {
 
     return { data: json, error: null };
   } catch (err) {
+    // AbortError is not a real failure — return a silent null result
+    if (err.name === 'AbortError') return { data: null, error: null };
     return { data: null, error: 'Network error — is the server running?' };
   }
 }
 
 // Convenience helpers
-const get    = (path)        => request('GET',    path);
-const post   = (path, body)  => request('POST',   path, body);
-const patch  = (path, body)  => request('PATCH',  path, body);
-const put    = (path, body)  => request('PUT',    path, body);
-const del    = (path)        => request('DELETE', path);
+const get    = (path, signal)        => request('GET',    path, null,  signal);
+const post   = (path, body)          => request('POST',   path, body);
+const patch  = (path, body)          => request('PATCH',  path, body);
+const put    = (path, body)          => request('PUT',    path, body);
+const del    = (path)                => request('DELETE', path);
 // =============================================================================
 // SECTION: Auth API
 // login/register are handled by Firebase Auth — these endpoints handle
@@ -77,17 +82,18 @@ export const activitiesAPI = {
   /**
    * Fetch paginated activities.
    * @param {{ page?, limit?, category?, date_from?, date_to? }} params
+   * @param {AbortSignal} [signal]
    */
-  list: (params = {}) => {
+  list: (params = {}, signal) => {
     const qs = new URLSearchParams(params).toString();
-    return get(`/activities${qs ? '?' + qs : ''}`);
+    return get(`/activities${qs ? '?' + qs : ''}`, signal);
   },
 
   /** Summary totals by category for a given period. */
-  summary: (period = 'month') => get(`/activities/summary?period=${period}`),
+  summary: (period = 'month', signal) => get(`/activities/summary?period=${period}`, signal),
 
   /** Daily totals for the last N days (sparkline data). */
-  trend: (days = 7) => get(`/activities/trend?days=${days}`),
+  trend: (days = 7, signal) => get(`/activities/trend?days=${days}`, signal),
 
   /** Log a new activity. */
   create: (body) => post('/activities', body),
