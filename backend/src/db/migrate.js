@@ -137,6 +137,12 @@ CREATE TABLE IF NOT EXISTS recommendations (
 
 CREATE INDEX IF NOT EXISTS idx_recommendations_user
   ON recommendations (user_id, generated_at DESC);
+
+-- Partial index: fast fetch of today's unactioned recommendations
+-- (the most common query pattern — used on every dashboard load)
+CREATE INDEX IF NOT EXISTS idx_recommendations_user_today
+  ON recommendations (user_id, generated_at DESC)
+  WHERE is_actioned = FALSE;
 `;
 
 async function migrate() {

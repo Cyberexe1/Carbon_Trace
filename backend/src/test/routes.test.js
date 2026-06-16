@@ -33,7 +33,6 @@ jest.mock('firebase-admin', () => {
 // =============================================================================
 // SECTION: Mock DB Pool
 // =============================================================================
-const mockQuery = jest.fn();
 jest.mock('../db/pool', () => ({
   pool: { query: jest.fn() },
 }));
@@ -227,5 +226,165 @@ describe('GET /health', () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ok');
+  });
+});
+
+// =============================================================================
+// SECTION: Challenges Routes
+// =============================================================================
+describe('GET /api/challenges', () => {
+  beforeEach(() => pool.query.mockReset());
+
+  it('requires auth — 401 without token', async () => {
+    const res = await request(app).get('/api/challenges');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns challenges list for authenticated user', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rows: [
+      { id: 1, title: 'Go Green July', category: 'transport', joined: false, participant_count: '12' },
+    ]});
+
+    const res = await request(app)
+      .get('/api/challenges')
+      .set('Authorization', BEARER);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].title).toBe('Go Green July');
+  });
+});
+
+describe('POST /api/challenges/:id/join', () => {
+  beforeEach(() => pool.query.mockReset());
+
+  it('returns 404 when challenge does not exist', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // challenge lookup
+
+    const res = await request(app)
+      .post('/api/challenges/999/join')
+      .set('Authorization', BEARER);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('not found');
+  });
+
+  it('joins challenge successfully', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 1 }] }); // challenge exists
+    pool.query.mockResolvedValueOnce({ rows: [] }); // INSERT ON CONFLICT DO NOTHING
+
+    const res = await request(app)
+      .post('/api/challenges/1/join')
+      .set('Authorization', BEARER);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toContain('Joined');
+  });
+});
+
+describe('GET /api/challenges/:id/leaderboard', () => {
+  beforeEach(() => pool.query.mockReset());
+
+  it('returns leaderboard with user rank', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rows: [
+      { user_id: 2, first_name: 'Alice', score_kg: '45.2', rank: '1' },
+      { user_id: 1, first_name: 'Test',  score_kg: '30.0', rank: '2' },
+    ]});
+    pool.query.mockResolvedValueOnce({ rows: [{ rank: '2' }] }); // myRank query
+
+    const res = await request(app)
+      .get('/api/challenges/1/leaderboard')
+      .set('Authorization', BEARER);
+
+    expect(res.status).toBe(200);
+    expect(res.body.leaderboard).toHaveLength(2);
+    expect(res.body.myRank).toBe('2');
+  });
+});
+
+// =============================================================================
+// SECTION: Recommendations Routes
+// =============================================================================
+describe('GET /api/recommendations', () => {
+  beforeEach(() => pool.query.mockReset());
+
+  it('requires auth — 401 without token', async () => {
+    const res = await request(app).get('/api/recommendations');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns existing recommendations for today', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rows: [
+      { id: 1, title: 'Try public transit', saving_kg: '8', is_actioned: false },
+    ]});
+
+    const res = await request(app)
+      .get('/api/recommendations')
+      .set('Authorization', BEARER);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].title).toBe('Try public transit');
+  });
+
+  it('seeds recommendations when none exist for today', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rows: [] });           // no recs today
+    pool.query.mockResolvedValueOnce({ rows: [] });           // bulk INSERT
+    pool.query.mockResolvedValueOnce({ rows: [               // SELECT after seed
+      { id: 2, title: 'Switch to LED lighting', saving_kg: '5', is_actioned: false },
+    ]});
+
+    const res = await request(app)
+      .get('/api/recommendations')
+      .set('Authorization', BEARER);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+  });
+});
+
+describe('PATCH /api/recommendations/:id', () => {
+  beforeEach(() => pool.query.mockReset());
+
+  it('rejects invalid action with 400', async () => {
+    mockUserUpsert(1);
+    const res = await request(app)
+      .patch('/api/recommendations/1')
+      .set('Authorization', BEARER)
+      .send({ action: 'invalid' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("'done' or 'skip'");
+  });
+
+  it('marks recommendation as done', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rows: [
+      { id: 1, is_actioned: true, action_type: 'done' },
+    ]});
+
+    const res = await request(app)
+      .patch('/api/recommendations/1')
+      .set('Authorization', BEARER)
+      .send({ action: 'done' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.action_type).toBe('done');
+  });
+
+  it('returns 404 when recommendation not found or owned by another user', async () => {
+    mockUserUpsert(1);
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .patch('/api/recommendations/999')
+      .set('Authorization', BEARER)
+      .send({ action: 'skip' });
+
+    expect(res.status).toBe(404);
   });
 });

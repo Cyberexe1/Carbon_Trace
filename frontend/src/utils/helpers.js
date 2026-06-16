@@ -3,7 +3,7 @@
 // Pure functions with no side effects — fully unit-testable.
 // =============================================================================
 
-import { CARBON_STATUS, CATEGORIES } from './constants';
+import { CARBON_STATUS, EMISSION_CATEGORIES } from './constants';
 
 // --- Carbon Status Resolver ---
 // Returns the status object (label, colors) based on today's kg value.
@@ -16,7 +16,7 @@ export function getCarbonStatus(kg) {
 // --- Category Lookup ---
 // Returns full category object by id string.
 export function getCategoryById(id) {
-  return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0];
+  return EMISSION_CATEGORIES.find((c) => c.id === id) ?? EMISSION_CATEGORIES[0];
 }
 
 // --- Carbon Number Formatter ---

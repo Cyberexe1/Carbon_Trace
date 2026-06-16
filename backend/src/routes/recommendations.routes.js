@@ -45,13 +45,20 @@ router.get('/', async (req, res, next) => {
     // Auto-seed if the user has no recommendations today
     if (rows.length === 0) {
       const tips = FALLBACK_TIPS.slice(0, 3);
-      for (const tip of tips) {
-        await pool.query(
-          `INSERT INTO recommendations (user_id, title, description, saving_kg, difficulty, category)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [uid, tip.title, tip.description, tip.saving_kg, tip.difficulty, tip.category]
-        );
-      }
+      // Bulk INSERT in a single round-trip instead of 3 sequential queries
+      await pool.query(
+        `INSERT INTO recommendations (user_id, title, description, saving_kg, difficulty, category)
+         VALUES
+           ($1,$2,$3,$4,$5,$6),
+           ($1,$7,$8,$9,$10,$11),
+           ($1,$12,$13,$14,$15,$16)`,
+        [
+          uid,
+          tips[0].title, tips[0].description, tips[0].saving_kg, tips[0].difficulty, tips[0].category,
+          tips[1].title, tips[1].description, tips[1].saving_kg, tips[1].difficulty, tips[1].category,
+          tips[2].title, tips[2].description, tips[2].saving_kg, tips[2].difficulty, tips[2].category,
+        ]
+      );
       const seeded = await pool.query(
         `SELECT * FROM recommendations WHERE user_id=$1 AND DATE(generated_at)=CURRENT_DATE`,
         [uid]

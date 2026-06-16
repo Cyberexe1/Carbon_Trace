@@ -41,6 +41,17 @@ if (process.env.NODE_ENV === 'production') {
 // Remove unsafe-inline from scriptSrc in production — only allow in dev for Vite HMR
 const isProd = process.env.NODE_ENV === 'production';
 app.use(helmet({
+  permissionsPolicy: {
+    features: {
+      camera:           [],   // deny
+      microphone:       [],   // deny
+      geolocation:      [],   // deny
+      payment:          [],   // deny
+      usb:              [],   // deny
+      fullscreen:       ['self'],
+      displayCapture:   [],   // deny
+    },
+  },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
