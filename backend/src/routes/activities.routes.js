@@ -151,11 +151,10 @@ router.get('/trend', async (req, res, next) => {
 const activityRules = [
   body('category').isIn(['transport','diet','energy','shopping','waste'])
     .withMessage('category must be one of: transport, diet, energy, shopping, waste'),
-  body('subtype').trim().notEmpty().withMessage('subtype is required'),
+  body('subtype').trim().notEmpty().isLength({ max: 50 }).withMessage('subtype is required and max 50 chars'),
   body('quantity').isFloat({ min: 0 }).withMessage('quantity must be a non-negative number'),
-  body('unit').trim().notEmpty().withMessage('unit is required'),
+  body('unit').trim().notEmpty().isLength({ max: 20 }).withMessage('unit is required and max 20 chars'),
   body('carbon_kg').isFloat({ min: 0 }).withMessage('carbon_kg must be a non-negative number'),
-  // Sanitize notes — trim whitespace and escape HTML to prevent XSS if ever rendered unsanitized
   body('notes').optional().trim().escape().isLength({ max: 500 }).withMessage('notes max 500 characters'),
   body('logged_date').optional().isISO8601().withMessage('logged_date must be a valid date'),
 ];

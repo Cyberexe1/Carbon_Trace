@@ -103,10 +103,12 @@ function ArticlesTab() {
     <div>
       {/* Search bar */}
       <div className="relative mb-5">
-        <MaterialIcon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-[#bdcaba] text-xl" />
+        <MaterialIcon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-[#bdcaba] text-xl" aria-hidden="true" />
         <input
+          id="articles-search"
           type="search"
           placeholder="Search articles..."
+          aria-label="Search articles"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3 bg-white rounded-xl border border-[#bdcaba] focus:ring-2 focus:ring-[#006b2c] outline-none text-[#141b2b] placeholder:text-[#bdcaba]"
@@ -224,10 +226,12 @@ function GlossaryTab() {
   return (
     <div>
       <div className="relative mb-5">
-        <MaterialIcon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-[#bdcaba] text-xl" />
+        <MaterialIcon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-[#bdcaba] text-xl" aria-hidden="true" />
         <input
+          id="glossary-search"
           type="search"
           placeholder="Search glossary..."
+          aria-label="Search glossary terms"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3 bg-white rounded-xl border border-[#bdcaba] focus:ring-2 focus:ring-[#006b2c] outline-none text-[#141b2b] placeholder:text-[#bdcaba]"
@@ -369,8 +373,10 @@ export default function LearnPage() {
         {TABS.map((t) => (
           <button
             key={t.id}
+            id={`tab-${t.id}`}
             role="tab"
             aria-selected={tab === t.id}
+            aria-controls="learn-tabpanel"
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold uppercase tracking-wider transition-all ${
               tab === t.id
@@ -378,14 +384,18 @@ export default function LearnPage() {
                 : 'text-[#3e4a3d] hover:bg-[#e1e8fd]'
             }`}
           >
-            <MaterialIcon name={t.icon} fill={tab === t.id ? 1 : 0} className="text-lg" />
+            <MaterialIcon name={t.icon} fill={tab === t.id ? 1 : 0} className="text-lg" aria-hidden="true" />
             <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>
 
       {/* Tab content */}
-      <div role="tabpanel">
+      <div
+        id="learn-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`tab-${tab}`}
+      >
         {tab === 'articles' && <ArticlesTab />}
         {tab === 'videos'   && <VideosTab />}
         {tab === 'glossary' && <GlossaryTab />}

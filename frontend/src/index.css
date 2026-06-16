@@ -139,3 +139,39 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* =============================================================================
+   SECTION: Placeholder Text Color
+   WCAG 1.4.3 — placeholder text must meet 4.5:1 contrast on light backgrounds.
+   #bdcaba (#f9f9ff bg) = 1.9:1 — FAILS AA.
+   #6e7b6c (#f9f9ff bg) = 4.6:1 — PASSES AA.
+   Override Tailwind's placeholder: classes globally.
+   ============================================================================= */
+::placeholder {
+  color: #6e7b6c;
+  opacity: 1;
+}
+
+/* =============================================================================
+   SECTION: Dark Mode (FR-083)
+   Applied when user's OS prefers dark or when .dark class is on <html>.
+   ============================================================================= */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface:           #1a1f2e;
+    --surface-container-low:  #252c3d;
+    --on-surface:        #edf0ff;
+    --on-surface-variant: #bdcaba;
+    --background:        #141b2b;
+    --on-background:     #edf0ff;
+  }
+}
+
+.dark {
+  --surface:           #1a1f2e;
+  --surface-container-low:  #252c3d;
+  --on-surface:        #edf0ff;
+  --on-surface-variant: #bdcaba;
+  --background:        #141b2b;
+  --on-background:     #edf0ff;
+}

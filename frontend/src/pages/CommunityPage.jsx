@@ -151,7 +151,12 @@ function Leaderboard({ challenges }) {
   }, [targetId]);  // ← stable primitive ID, not object reference
 
   const podium = leaderboard.slice(0, 3);
-  const rest   = leaderboard.slice(3);
+  // Friends tab shows only top 5 — in production this would filter by friend list
+  // For now it shows a subset with a note that it requires social connections
+  const displayList = tab === 'Friends'
+    ? leaderboard.slice(0, 5)
+    : leaderboard;
+  const rest = displayList.slice(3);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-[#bdcaba]/30 p-6">
@@ -179,6 +184,11 @@ function Leaderboard({ challenges }) {
         </div>
       ) : (
         <>
+          {tab === 'Friends' && (
+            <p className="text-[11px] text-[#6e7b6c] mb-3 italic">
+              Showing top participants. Friend connections coming in a future update.
+            </p>
+          )}
           {/* Podium — top 3 */}
           {podium.length >= 3 && (
             <div className="flex items-end justify-center gap-4 mb-6">

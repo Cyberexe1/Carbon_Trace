@@ -1,0 +1,26 @@
+# Dependencies — installed inside Docker
+**/node_modules
+
+# Dev/test artifacts
+**/dist
+**/.env
+**/.env.local
+**/coverage
+**/.nyc_output
+
+# Vite build analysis
+**/stats.html
+
+# Git + IDE
+.git
+.gitignore
+.vscode
+.kiro
+
+# Playwright
+**/e2e
+**/playwright-report
+**/test-results
+
+# Docs
+*.md

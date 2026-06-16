@@ -30,6 +30,22 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput]             = useState('');
 
+  // FR-083: Dark mode — persist preference in localStorage
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('ct_dark_mode') === 'true';
+  });
+
+  const toggleDarkMode = (enabled) => {
+    setDarkMode(enabled);
+    localStorage.setItem('ct_dark_mode', String(enabled));
+    document.documentElement.classList.toggle('dark', enabled);
+  };
+
+  // Apply saved dark mode on mount
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, []);
+
   const [form, setForm] = useState({
     firstName: '', lastName: '', country: 'United States', lifestyle: 'transit',
   });
@@ -249,6 +265,46 @@ export default function SettingsPage() {
               <MaterialIcon name="download" fill={1} className="text-lg" aria-hidden="true" />
               Download JSON
             </button>
+          </section>
+
+          {/* =================================================================
+              FR-083 — Dark mode toggle
+          ================================================================= */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#bdcaba]/30"
+            aria-labelledby="appearance-heading">
+            <h2 id="appearance-heading" className="text-lg font-bold text-[#141b2b] mb-2">Appearance</h2>
+            <p className="text-sm text-[#3e4a3d] mb-4">
+              Switch between light and dark mode. Your preference is saved locally.
+            </p>
+            <div className="flex items-center justify-between p-4 bg-[#f1f3ff] rounded-xl">
+              <div className="flex items-center gap-3">
+                <MaterialIcon
+                  name={darkMode ? 'dark_mode' : 'light_mode'}
+                  fill={1}
+                  className={darkMode ? 'text-[#9B72CF] text-xl' : 'text-[#d97706] text-xl'}
+                  aria-hidden="true"
+                />
+                <span className="text-sm font-semibold text-[#141b2b]">
+                  {darkMode ? 'Dark Mode' : 'Light Mode'}
+                </span>
+              </div>
+              <button
+                role="switch"
+                aria-checked={darkMode}
+                aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                onClick={() => toggleDarkMode(!darkMode)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006b2c] ${
+                  darkMode ? 'bg-[#006b2c]' : 'bg-[#bdcaba]'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    darkMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
           </section>
 
           {/* =================================================================

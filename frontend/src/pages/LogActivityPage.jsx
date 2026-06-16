@@ -278,6 +278,63 @@ export default function LogActivityPage() {
   const [importing,   setImporting]   = useState(false);
   const csvInputRef = useRef(null);
 
+  // FR-012: Quick-log favorites — stored in localStorage
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ct_favorites') || '[]'); }
+    catch { return []; }
+  });
+
+  const saveFavorite = useCallback(() => {
+    const cat = CATEGORIES.find((c) => c.id === selCategory);
+    const sub = cat?.subtypes.find((s) => s.id === selSubtype);
+    if (!cat || !sub) return;
+    const fav = {
+      id:          `${selCategory}_${selSubtype}`,
+      label:       `${cat.label} · ${sub.label}`,
+      categoryId:  selCategory,
+      subtypeId:   selSubtype,
+      defaultQty:  quantity,
+      unit:        sub.unit,
+      icon:        cat.icon,
+      accent:      cat.accent,
+    };
+    setFavorites((prev) => {
+      const next = [fav, ...prev.filter((f) => f.id !== fav.id)].slice(0, 6);
+      localStorage.setItem('ct_favorites', JSON.stringify(next));
+      return next;
+    });
+    showToast('Added to Quick Log!');
+  }, [selCategory, selSubtype, quantity]);
+
+  const removeFavorite = useCallback((favId) => {
+    setFavorites((prev) => {
+      const next = prev.filter((f) => f.id !== favId);
+      localStorage.setItem('ct_favorites', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const logFavorite = useCallback(async (fav) => {
+    const cat = CATEGORIES.find((c) => c.id === fav.categoryId);
+    const sub = cat?.subtypes.find((s) => s.id === fav.subtypeId);
+    if (!cat || !sub) return;
+    const carbonKg = Math.round(fav.defaultQty * sub.factor * 1000) / 1000;
+    setSaving(true);
+    const { data, error } = await activitiesAPI.create({
+      category:    fav.categoryId,
+      subtype:     fav.subtypeId,
+      quantity:    fav.defaultQty,
+      unit:        fav.unit,
+      carbon_kg:   carbonKg,
+      notes:       '',
+      logged_date: new Date().toISOString().split('T')[0],
+    });
+    setSaving(false);
+    if (error) { showToast(`Error: ${error}`); return; }
+    setLogged((prev) => [data, ...prev]);
+    showToast(`Quick logged! +${carbonKg.toFixed(2)} kg CO₂e`);
+  }, []);
+
   const category = CATEGORIES.find((c) => c.id === selCategory);
   const subtype  = category?.subtypes.find((s) => s.id === selSubtype);
 
@@ -445,6 +502,38 @@ export default function LogActivityPage() {
         {/* LEFT — Log Form */}
         <div className="lg:col-span-7 flex flex-col gap-5">
 
+          {/* FR-012: Quick Log — pinned favorites */}
+          {favorites.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#bdcaba]/30">
+              <p className="text-[11px] font-bold text-[#3e4a3d] uppercase tracking-widest mb-3">
+                ⚡ Quick Log
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {favorites.map((fav) => (
+                  <div key={fav.id} className="flex items-center gap-1 bg-[#f0fdf4] border border-[#b1f2be] rounded-full pr-1">
+                    <button
+                      onClick={() => logFavorite(fav)}
+                      disabled={saving}
+                      className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-[#006b2c] hover:bg-[#b1f2be] rounded-full transition-colors"
+                      aria-label={`Quick log ${fav.label}`}
+                    >
+                      <MaterialIcon name={fav.icon} className="text-sm" aria-hidden="true" style={{ color: fav.accent }} />
+                      {fav.label}
+                      <span className="text-[10px] opacity-60">{fav.defaultQty}{fav.unit}</span>
+                    </button>
+                    <button
+                      onClick={() => removeFavorite(fav.id)}
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[#3e4a3d] hover:bg-[#ffdad6] hover:text-[#ba1a1a] transition-colors"
+                      aria-label={`Remove ${fav.label} from favorites`}
+                    >
+                      <MaterialIcon name="close" className="text-xs" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Step 1 — Category */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#bdcaba]/30">
             <p className="text-[11px] font-bold text-[#3e4a3d] uppercase tracking-widest mb-4">1 · Choose a Category</p>
@@ -545,9 +634,31 @@ export default function LogActivityPage() {
                 </div>
                 <div>
                   <label htmlFor="activity-notes" className="block text-xs font-bold text-[#3e4a3d] uppercase mb-1">Notes (optional)</label>
-                  <input id="activity-notes" type="text" placeholder="e.g. drove to client meeting"
-                    value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={160}
-                    className="w-full px-4 py-2.5 bg-[#f1f3ff] rounded-lg border-0 focus:ring-2 focus:ring-[#006b2c] text-[#141b2b] placeholder:text-[#bdcaba]" />
+                  <div className="relative">
+                    <input id="activity-notes" type="text" placeholder="e.g. drove to client meeting"
+                      value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={160}
+                      className="w-full px-4 py-2.5 pr-10 bg-[#f1f3ff] rounded-lg border-0 focus:ring-2 focus:ring-[#006b2c] text-[#141b2b] placeholder:text-[#bdcaba]" />
+                    {/* FR-014: Voice-to-text using Web Speech API */}
+                    {'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? (
+                      <button
+                        type="button"
+                        aria-label="Dictate notes using voice"
+                        onClick={() => {
+                          const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                          const rec = new SR();
+                          rec.lang = 'en-US';
+                          rec.interimResults = false;
+                          rec.onresult = (e) => {
+                            setNotes((prev) => (prev ? prev + ' ' : '') + e.results[0][0].transcript);
+                          };
+                          rec.start();
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[#3e4a3d] hover:bg-[#e1e8fd] transition-colors"
+                      >
+                        <MaterialIcon name="mic" className="text-lg" aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <Button fullWidth className="mt-5 py-4 text-base rounded-xl" onClick={handleLog}
@@ -558,6 +669,16 @@ export default function LogActivityPage() {
                   <><MaterialIcon name="add_circle" fill={1} className="text-xl" />Log Activity</>
                 )}
               </Button>
+              {/* FR-012: Save current selection as a quick-log favorite */}
+              <button
+                type="button"
+                onClick={saveFavorite}
+                className="w-full mt-2 text-[11px] font-bold text-[#006b2c] hover:underline flex items-center justify-center gap-1"
+                aria-label="Save as Quick Log favorite"
+              >
+                <MaterialIcon name="bookmark" fill={1} className="text-sm" aria-hidden="true" />
+                Save as Quick Log
+              </button>
             </div>
           )}
 

@@ -74,10 +74,13 @@ async function requireAuth(req, res, next) {
         );
         userRow = updated.rows[0];
       } else {
-        // Brand new user — insert
+        // Brand new user — insert with ON CONFLICT to handle concurrent first-logins
         const inserted = await pool.query(
           `INSERT INTO users (firebase_uid, email, first_name, last_name)
            VALUES ($1, $2, $3, $4)
+           ON CONFLICT (firebase_uid) DO UPDATE
+             SET email      = EXCLUDED.email,
+                 updated_at = NOW()
            RETURNING id, first_name, is_onboarded`,
           [
             decoded.uid,

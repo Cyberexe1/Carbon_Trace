@@ -269,12 +269,30 @@ export default function GoalsPage() {
   useEffect(() => loadGoals(), [loadGoals]);
 
   // Mark as completed → PATCH /api/goals/:id
+  // FR-042: Show milestone notification at 25%, 50%, 75%, 100%
   const handleComplete = async (id) => {
     const { error } = await goalsAPI.update(id, { status: 'completed' });
     if (error) { showToast(`Error: ${error}`); return; }
-    showToast('Goal completed! 🎉');
+    showToast('Goal completed! 🎉 Outstanding work!');
     loadGoals();
   };
+
+  // FR-042: Called when progress is updated — checks for milestone thresholds
+  const checkMilestone = useCallback((goal, newProgressKg) => {
+    const pct     = (newProgressKg / parseFloat(goal.target_kg)) * 100;
+    const current = parseFloat(goal.progress_kg);
+    const curPct  = (current / parseFloat(goal.target_kg)) * 100;
+    const MILESTONES = [25, 50, 75, 100];
+    for (const m of MILESTONES) {
+      if (curPct < m && pct >= m) {
+        const msg = m === 100
+          ? `🎉 Goal "${goal.title}" complete!`
+          : `🏆 ${m}% milestone reached on "${goal.title}"`;
+        showToast(msg);
+        break;
+      }
+    }
+  }, []);
 
   // Delete → DELETE /api/goals/:id
   const handleDelete = async (id) => {

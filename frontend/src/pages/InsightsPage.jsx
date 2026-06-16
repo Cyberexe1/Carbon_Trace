@@ -140,7 +140,14 @@ const TrendChart = memo(function TrendChart({ trend, period, onPeriodChange, loa
       </div>
 
       {loading ? (
-        <div className="h-[250px] bg-[#f1f3ff] rounded-xl animate-pulse" aria-busy="true" aria-label="Loading chart data" />
+        <div
+          className="h-[250px] bg-[#f1f3ff] rounded-xl animate-pulse"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading chart data"
+        >
+          <span className="sr-only">Loading carbon trend chart…</span>
+        </div>
       ) : data.length === 0 ? (
         <div className="h-[250px] flex items-center justify-center">
           <div className="text-center">

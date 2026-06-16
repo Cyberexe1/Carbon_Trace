@@ -48,10 +48,15 @@ router.get('/profile', async (req, res, next) => {
 // PATCH /api/users/profile
 // Body: { firstName?, lastName?, country?, lifestyle? }
 // =============================================================================
+const VALID_COUNTRIES = [
+  'United States','United Kingdom','Germany','Norway','Canada',
+  'Australia','India','France','Other',
+];
+
 const profileRules = [
-  body('firstName').optional().trim().notEmpty(),
-  body('lastName').optional().trim(),
-  body('country').optional().trim(),
+  body('firstName').optional().trim().notEmpty().isLength({ max: 100 }),
+  body('lastName').optional().trim().isLength({ max: 100 }),
+  body('country').optional().trim().isIn(VALID_COUNTRIES).withMessage('Invalid country'),
   body('lifestyle').optional().isIn(['car','transit','cyclist','flyer']),
 ];
 

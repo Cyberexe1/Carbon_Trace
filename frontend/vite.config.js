@@ -25,6 +25,8 @@ export default defineConfig({
     globals:     true,
     setupFiles:  ['./src/test/setup.js'],
     plugins:     [react()],
+    // Exclude Playwright e2e tests from Vitest
+    exclude:     ['**/node_modules/**', '**/e2e/**', '**/*.spec.js'],
     coverage: {
       provider:   'v8',
       reporter:   ['text', 'html'],

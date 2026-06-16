@@ -128,10 +128,33 @@ app.get('/health', (req, res) => {
 });
 
 // =============================================================================
+// SECTION: Serve React frontend (production only)
+// In production the Dockerfile copies the Vite dist/ into ./public.
+// Any request that isn't an API route gets the index.html so React Router
+// can handle client-side navigation.
+// =============================================================================
+if (isProd) {
+  const path = require('path');
+  const STATIC_DIR = path.join(__dirname, '..', 'public');
+
+  app.use(express.static(STATIC_DIR));
+
+  // Catch-all: send index.html for every non-API route
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(STATIC_DIR, 'index.html'));
+  });
+}
+
+// =============================================================================
 // SECTION: 404 Handler
-// Catches any request that didn't match a registered route.
+// Only fires for unmatched API routes. Non-API routes fall through to the
+// React catch-all above in production (or return 404 in dev).
 // =============================================================================
 app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
+  }
+  // In dev (no static serving), return a plain 404
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` });
 });
 
