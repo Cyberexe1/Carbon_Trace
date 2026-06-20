@@ -43,7 +43,8 @@ export function trendColorClass(percent) {
 // --- Difficulty Stars Renderer ---
 // Returns a string of filled/empty stars for difficulty 1-5.
 export function difficultyStars(level, max = 3) {
-  return '⭐'.repeat(level) + '☆'.repeat(max - level);
+  const clamped = clamp(level, 0, max);
+  return '⭐'.repeat(clamped) + '☆'.repeat(max - clamped);
 }
 
 // --- Clamp utility ---

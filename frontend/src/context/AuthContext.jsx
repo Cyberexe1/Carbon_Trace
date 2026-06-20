@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
         // Persist minimal user shape in state
         setUser({
           uid:   firebaseUser.uid,
-          name:  firebaseUser.name,
+          name:  firebaseUser.displayName,   // Firebase User uses .displayName, not .name
           email: firebaseUser.email,
         });
 
@@ -68,7 +68,7 @@ export function AuthProvider({ children }) {
 
     setUser({
       uid:   fbUser.uid,
-      name:  fbUser.name,
+      name:  fbUser.displayName,
       email: fbUser.email,
     });
     return null; // no error
@@ -76,16 +76,13 @@ export function AuthProvider({ children }) {
 
   // -------------------------------------------------------------------------
   // login — Firebase verifies credentials and returns the user.
-  // isOnboarded is resolved by subscribeToAuthChanges — do not navigate
-  // here; let the caller wait for loading to settle.
-  // -------------------------------------------------------------------------
   const login = useCallback(async (email, password) => {
     const { user: fbUser, error } = await signInWithEmail(email, password);
     if (error) return error;
 
     setUser({
       uid:   fbUser.uid,
-      name:  fbUser.name,
+      name:  fbUser.displayName,
       email: fbUser.email,
     });
 

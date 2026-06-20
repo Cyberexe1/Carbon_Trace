@@ -16,9 +16,8 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   // Handle sign-out and return to landing page
-  const handleLogout = () => {
-    logout();
-    navigate(ROUTES.HOME);
+  const handleLogout = async () => {
+    try { await logout(); } finally { navigate(ROUTES.HOME); }
   };
 
   return (

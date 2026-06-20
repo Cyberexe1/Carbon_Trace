@@ -186,10 +186,8 @@ describe('PATCH /api/goals/:id — validation', () => {
 
   it('accepts valid status update', async () => {
     mockUserUpsert(1);
+    // Single UPDATE query now returns the completed row directly
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{
-      id: 1, progress_kg: '10', target_kg: '20', status: 'active',
-    }]});
-    pool.query.mockResolvedValueOnce({ rows: [{
       id: 1, progress_kg: '10', target_kg: '20', status: 'completed',
     }]});
 
@@ -289,11 +287,11 @@ describe('GET /api/challenges/:id/leaderboard', () => {
 
   it('returns leaderboard with user rank', async () => {
     mockUserUpsert(1);
+    // Single CTE query returns rows with an in_top20 flag
     pool.query.mockResolvedValueOnce({ rows: [
-      { user_id: 2, first_name: 'Alice', score_kg: '45.2', rank: '1' },
-      { user_id: 1, first_name: 'Test',  score_kg: '30.0', rank: '2' },
+      { user_id: 2, first_name: 'Alice', score_kg: '45.2', rank: '1', in_top20: true },
+      { user_id: 1, first_name: 'Test',  score_kg: '30.0', rank: '2', in_top20: true },
     ]});
-    pool.query.mockResolvedValueOnce({ rows: [{ rank: '2' }] }); // myRank query
 
     const res = await request(app)
       .get('/api/challenges/1/leaderboard')

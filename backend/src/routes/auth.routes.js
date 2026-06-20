@@ -14,6 +14,7 @@ const { body }  = require('express-validator');
 const { pool }  = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate }    = require('../middleware/validate');
+const { VALID_COUNTRIES, VALID_LIFESTYLES } = require('../constants');
 
 const router = express.Router();
 
@@ -34,8 +35,8 @@ function signToken(user) {
 const registerRules = [
   body('firstName').trim().notEmpty().withMessage('First name is required'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('country').optional().trim(),
+  body('password').isLength({ min: 8, max: 128 }).withMessage('Password must be 8–128 characters'),
+  body('country').optional().trim().isIn(VALID_COUNTRIES).withMessage('Invalid country'),
 ];
 
 router.post('/register', registerRules, validate, async (req, res, next) => {
@@ -174,6 +175,10 @@ router.get('/me', requireAuth, async (req, res, next) => {
 // =============================================================================
 router.patch('/onboard', requireAuth, async (req, res, next) => {
   const { lifestyle = 'transit' } = req.body;
+  // Validate lifestyle matches the same allowed values as PATCH /users/profile
+  if (!VALID_LIFESTYLES.includes(lifestyle)) {
+    return res.status(400).json({ error: `lifestyle must be one of: ${VALID_LIFESTYLES.join(', ')}` });
+  }
   try {
     await pool.query(
       `UPDATE users SET is_onboarded = TRUE, lifestyle = $1, updated_at = NOW()

@@ -15,6 +15,10 @@ const { body } = require('express-validator');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate }    = require('../middleware/validate');
+const { GOAL_CATEGORIES, GOAL_STATUSES } = require('../constants');
+
+// Columns returned to clients — explicit list avoids leaking future columns
+const GOAL_COLUMNS = 'id, user_id, title, category, target_kg, progress_kg, deadline, status, created_at, updated_at';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -26,6 +30,10 @@ router.use(requireAuth);
 router.get('/', async (req, res, next) => {
   const userId = req.user.id;
   const status = req.query.status || 'active';
+  const VALID_STATUSES = [...GOAL_STATUSES, 'all'];
+  if (!VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
 
   try {
     const where = status === 'all' ? 'user_id = $1' : 'user_id = $1 AND status = $2';
@@ -52,7 +60,7 @@ router.get('/', async (req, res, next) => {
 // =============================================================================
 const goalRules = [
   body('title').trim().notEmpty().withMessage('title is required'),
-  body('category').isIn(['transport','diet','energy','shopping','waste','general'])
+  body('category').isIn(GOAL_CATEGORIES)
     .withMessage('Invalid category'),
   body('target_kg').isFloat({ min: 0.1 }).withMessage('target_kg must be greater than 0'),
   body('deadline').isISO8601().withMessage('deadline must be a valid date'),
@@ -64,7 +72,7 @@ router.post('/', goalRules, validate, async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO goals (user_id, title, category, target_kg, deadline)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
+       RETURNING ${GOAL_COLUMNS}`,
       [req.user.id, title, category, parseFloat(target_kg), deadline]
     );
     res.status(201).json(rows[0]);
@@ -77,33 +85,34 @@ router.post('/', goalRules, validate, async (req, res, next) => {
 // PATCH /api/goals/:id
 // Body: { progress_kg?, status? }
 // Automatically marks as 'completed' when progress_kg >= target_kg.
+// Single round-trip: COALESCE keeps unchanged fields, CASE auto-completes.
 // =============================================================================
 const patchGoalRules = [
   body('progress_kg').optional().isFloat({ min: 0 }).withMessage('progress_kg must be a non-negative number'),
-  body('status').optional().isIn(['active','completed','failed']).withMessage('Invalid status'),
+  body('status').optional().isIn(GOAL_STATUSES).withMessage('Invalid status'),
 ];
 
 router.patch('/:id', patchGoalRules, validate, async (req, res, next) => {
   const { progress_kg, status } = req.body;
   try {
-    // Fetch current goal first
-    const current = await pool.query(
-      'SELECT * FROM goals WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.user.id]
-    );
-    if (current.rowCount === 0) return res.status(404).json({ error: 'Goal not found.' });
-
-    const goal = current.rows[0];
-    const newProgress = progress_kg !== undefined ? parseFloat(progress_kg) : goal.progress_kg;
-    const newStatus   = status || (newProgress >= parseFloat(goal.target_kg) ? 'completed' : goal.status);
-
     const { rows } = await pool.query(
       `UPDATE goals
-       SET progress_kg = $1, status = $2, updated_at = NOW()
+       SET progress_kg = COALESCE($1, progress_kg),
+           status = COALESCE($2, CASE
+             WHEN COALESCE($1, progress_kg) >= target_kg THEN 'completed'
+             ELSE status
+           END),
+           updated_at = NOW()
        WHERE id = $3 AND user_id = $4
-       RETURNING *`,
-      [newProgress, newStatus, req.params.id, req.user.id]
+       RETURNING ${GOAL_COLUMNS}`,
+      [
+        progress_kg !== undefined ? parseFloat(progress_kg) : null,
+        status || null,
+        req.params.id,
+        req.user.id,
+      ]
     );
+    if (rows.length === 0) return res.status(404).json({ error: 'Goal not found.' });
     res.json(rows[0]);
   } catch (err) {
     next(err);

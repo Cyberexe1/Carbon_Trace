@@ -15,9 +15,11 @@ export default function Badge({ children, variant = 'default', className = '' })
     default: 'bg-[#e9edff] text-[#3e4a3d]',
   };
 
+  const variantClass = variants[variant] ?? variants.default;
+
   return (
     <span
-      className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${variants[variant]} ${className}`}
+      className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${variantClass} ${className}`}
     >
       {children}
     </span>

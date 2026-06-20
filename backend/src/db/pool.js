@@ -13,18 +13,24 @@ require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Neon uses managed certs — safe to skip chain verify
-  },
+  // Neon requires SSL. In production we validate the cert chain; in local dev
+  // we relax it because some local proxies use self-signed certs.
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: true }
+    : { rejectUnauthorized: false },
   // Connection pool sizing
   max: 10,          // max simultaneous clients
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });
 
-// Log successful connection on first acquire
+// Log the first successful connection only (avoids 10x noise on pool warm-up)
+let connectionLogged = false;
 pool.on('connect', () => {
-  console.log('[db] Connected to Neon PostgreSQL');
+  if (!connectionLogged) {
+    console.log('[db] Connected to Neon PostgreSQL');
+    connectionLogged = true;
+  }
 });
 
 pool.on('error', (err) => {

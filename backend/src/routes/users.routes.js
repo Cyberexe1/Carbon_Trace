@@ -15,6 +15,7 @@ const { body } = require('express-validator');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate }    = require('../middleware/validate');
+const { VALID_COUNTRIES, VALID_LIFESTYLES } = require('../constants');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -48,16 +49,11 @@ router.get('/profile', async (req, res, next) => {
 // PATCH /api/users/profile
 // Body: { firstName?, lastName?, country?, lifestyle? }
 // =============================================================================
-const VALID_COUNTRIES = [
-  'United States','United Kingdom','Germany','Norway','Canada',
-  'Australia','India','France','Other',
-];
-
 const profileRules = [
   body('firstName').optional().trim().notEmpty().isLength({ max: 100 }),
   body('lastName').optional().trim().isLength({ max: 100 }),
   body('country').optional().trim().isIn(VALID_COUNTRIES).withMessage('Invalid country'),
-  body('lifestyle').optional().isIn(['car','transit','cyclist','flyer']),
+  body('lifestyle').optional().isIn(VALID_LIFESTYLES),
 ];
 
 router.patch('/profile', profileRules, validate, async (req, res, next) => {

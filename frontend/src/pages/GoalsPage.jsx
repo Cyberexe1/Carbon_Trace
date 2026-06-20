@@ -15,15 +15,15 @@ import { goalsAPI }   from '../services/api';
 // SECTION: Category config for icons / colours
 // =============================================================================
 const CAT_CONFIG = {
-  Transport: { icon: 'commute',       color: 'text-blue-600',   bg: 'bg-blue-50' },
-  Diet:      { icon: 'restaurant',    color: 'text-orange-600', bg: 'bg-orange-50' },
-  Energy:    { icon: 'bolt',          color: 'text-yellow-600', bg: 'bg-yellow-50' },
-  Shopping:  { icon: 'shopping_bag',  color: 'text-purple-600', bg: 'bg-purple-50' },
-  Waste:     { icon: 'recycling',     color: 'text-teal-600',   bg: 'bg-teal-50' },
-  General:   { icon: 'flag',          color: 'text-green-600',  bg: 'bg-green-50' },
+  transport: { icon: 'commute',       color: 'text-blue-600',   bg: 'bg-blue-50' },
+  diet:      { icon: 'restaurant',    color: 'text-orange-600', bg: 'bg-orange-50' },
+  energy:    { icon: 'bolt',          color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  shopping:  { icon: 'shopping_bag',  color: 'text-purple-600', bg: 'bg-purple-50' },
+  waste:     { icon: 'recycling',     color: 'text-teal-600',   bg: 'bg-teal-50' },
+  general:   { icon: 'flag',          color: 'text-green-600',  bg: 'bg-green-50' },
 };
 
-const getCat = (c) => CAT_CONFIG[c] || CAT_CONFIG.General;
+const getCat = (c) => CAT_CONFIG[c?.toLowerCase()] || CAT_CONFIG.general;
 
 const STATUS_CONFIG = {
   active:    { label: 'On Track', badge: 'green', icon: 'check_circle' },
@@ -269,30 +269,12 @@ export default function GoalsPage() {
   useEffect(() => loadGoals(), [loadGoals]);
 
   // Mark as completed → PATCH /api/goals/:id
-  // FR-042: Show milestone notification at 25%, 50%, 75%, 100%
   const handleComplete = async (id) => {
     const { error } = await goalsAPI.update(id, { status: 'completed' });
     if (error) { showToast(`Error: ${error}`); return; }
     showToast('Goal completed! 🎉 Outstanding work!');
     loadGoals();
   };
-
-  // FR-042: Called when progress is updated — checks for milestone thresholds
-  const checkMilestone = useCallback((goal, newProgressKg) => {
-    const pct     = (newProgressKg / parseFloat(goal.target_kg)) * 100;
-    const current = parseFloat(goal.progress_kg);
-    const curPct  = (current / parseFloat(goal.target_kg)) * 100;
-    const MILESTONES = [25, 50, 75, 100];
-    for (const m of MILESTONES) {
-      if (curPct < m && pct >= m) {
-        const msg = m === 100
-          ? `🎉 Goal "${goal.title}" complete!`
-          : `🏆 ${m}% milestone reached on "${goal.title}"`;
-        showToast(msg);
-        break;
-      }
-    }
-  }, []);
 
   // Delete → DELETE /api/goals/:id
   const handleDelete = async (id) => {

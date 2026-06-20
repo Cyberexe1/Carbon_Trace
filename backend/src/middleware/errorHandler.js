@@ -8,8 +8,10 @@
 'use strict';
 
 function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
-  // Log full error server-side for debugging
-  console.error(`[error] ${req.method} ${req.path} →`, err.message);
+  // Log full error server-side for debugging — only for unexpected 5xx
+  if (status >= 500) {
+    console.error(`[error] ${req.method} ${req.path} →`, err.message);
+  }
 
   // Determine HTTP status
   const status = err.status || err.statusCode || 500;

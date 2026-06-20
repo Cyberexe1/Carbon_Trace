@@ -17,6 +17,7 @@ const { body, query, param } = require('express-validator');
 const { pool } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { validate }    = require('../middleware/validate');
+const { ACTIVITY_CATEGORIES } = require('../constants');
 
 const router = express.Router();
 router.use(requireAuth); // All activity routes require authentication
@@ -149,7 +150,7 @@ router.get('/trend', async (req, res, next) => {
 // Body: { category, subtype, quantity, unit, carbon_kg, notes, logged_date }
 // =============================================================================
 const activityRules = [
-  body('category').isIn(['transport','diet','energy','shopping','waste'])
+  body('category').isIn(ACTIVITY_CATEGORIES)
     .withMessage('category must be one of: transport, diet, energy, shopping, waste'),
   body('subtype').trim().notEmpty().isLength({ max: 50 }).withMessage('subtype is required and max 50 chars'),
   body('quantity').isFloat({ min: 0 }).withMessage('quantity must be a non-negative number'),
