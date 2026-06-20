@@ -8,8 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-# dist is intentionally tracked — pre-built for Cloud Run deployment
-# dist-ssr
+# dist must NOT be committed — the built bundle contains baked-in API keys.
+# It is still uploaded to Cloud Run via .gcloudignore (which is separate from git).
+dist
 dist-ssr
 *.local
 
